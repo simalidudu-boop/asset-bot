@@ -11,6 +11,7 @@ Usage: python3 engine/run_content.py [--mock] [--dry-run] [--n 3]
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -73,7 +74,7 @@ def main():
             man.setdefault("posts", []).append({
                 "asset": a["slug"], "fmt": p["fmt"], "lang": lang,
                 "title": p["title"],
-                "at": os.popen("date -u +%Y-%m-%dT%H:%M:%SZ").read().strip(),
+                "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             })
             mf.write_text(json.dumps(man, indent=2))
     print(f"[content] done — {len(results)} posts attempted")
