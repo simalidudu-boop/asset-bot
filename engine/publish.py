@@ -84,8 +84,8 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
 
     payload = {
         "company_id": COMPANY_ID,
-        "title": pack["title"],
-        "headline": pack["subtitle"],
+        "title": pack["title"][:120],
+        "headline": (pack.get("subtitle") or pack["title"])[:80],
         "description": description,
         "visibility": "visible" if price == 0.0 else "hidden",
         "metadata": {"slug": slug, "kind": pack.get("category"),
