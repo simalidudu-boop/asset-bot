@@ -99,20 +99,10 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int = 120):
     req = urllib.request.Request(
         url, data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json",
-                 "User-Agent": "Mozilla/5.0 (asset-bot)", **headers}, method="POST")
+                 "User-Agent": "Mozilla/5.0 (asset-bot)", **headers},
+        method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read())
-
-
-def _post_json_cffi(url: str, payload: dict, headers: dict, timeout: int = 120):
-    """Some providers (Groq) block Python's TLS fingerprint with 403.
-    curl_cffi impersonates a real browser fingerprint."""
-    from curl_cffi import requests as cffi_requests
-    r = cffi_requests.post(url, json=payload, headers=headers,
-                           impersonate="chrome", timeout=timeout)
-    if r.status_code != 200:
-        raise urllib.error.HTTPError(url, r.status_code, r.text, None, None)
-    return r.json()
 
 
 def _call_openai_compatible(name: str, messages: list, model: str, max_tokens: int,
@@ -127,14 +117,7 @@ def _call_openai_compatible(name: str, messages: list, model: str, max_tokens: i
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
     headers = {"Authorization": f"Bearer {os.environ[prov['env_key']]}"}
-    try:
-        data = _post_json(prov["url"], payload, headers)
-    except urllib.error.HTTPError as e:
-        if e.code == 403:
-            # TLS-fingerprint block -> retry with browser impersonation
-            data = _post_json_cffi(prov["url"], payload, headers)
-        else:
-            raise
+    data = _post_json(prov["url"], payload, headers)
     return data["choices"][0]["message"]["content"]
 
 
@@ -213,23 +196,15 @@ def chat(messages: list, max_tokens: int = 2000, temperature: float = 0.7,
     for name in order:
         if len(results) >= min_successes:
             break
-        last_err = None
-        for attempt in range(2):  # retry once for transient 5xx/429
-            try:
-                results.append(_call_provider(name, messages, max_tokens,
-                                              temperature, json_mode, quality))
-                last_err = None
+        try:
+            results.append(_call_provider(name, messages, max_tokens, temperature, json_mode, quality))
+            if len(results) >= min_successes:
                 break
-            except urllib.error.HTTPError as e:
-                last_err = f"{name}: HTTP {e.code}"
-                if e.code not in (429, 500, 502, 503):
-                    break
-                time.sleep(3)
-            except Exception as e:
-                last_err = f"{name}: {e}"
-                time.sleep(2)
-        if last_err:
-            errors.append(last_err)
+        except urllib.error.HTTPError as e:
+            errors.append(f"{name}: HTTP {e.code}")
+            time.sleep(2)
+        except Exception as e:
+            errors.append(f"{name}: {e}")
             time.sleep(1)
     if not results:
         raise RuntimeError("all providers failed: " + " | ".join(errors))
@@ -237,37 +212,18 @@ def chat(messages: list, max_tokens: int = 2000, temperature: float = 0.7,
 
 
 def get_json(messages: list, max_tokens: int = 3000, quality: bool = True):
-    """chat() with JSON mode + repair pass + provider diversification."""
-    for attempt in range(3):
+    """chat() with JSON mode + a repair pass on parse failure."""
+    for attempt in range(2):
         try:
-            text = chat(messages, max_tokens=max_tokens, json_mode=True,
-                        quality=(quality and attempt == 0))[0]
+            text = chat(messages, max_tokens=max_tokens, json_mode=True, quality=quality)[0]
             return json.loads(_strip_json_fence(text))
-        except json.JSONDecodeError:
-            fixed = _repair_json(_strip_json_fence(text))
-            if fixed is not None:
-                return fixed
-            messages.append({"role": "user",
-                             "content": "Your last response was NOT valid JSON "
-                                        "(syntax errors). Return ONLY valid JSON."})
-        except RuntimeError:
-            pass  # provider tier exhausted -> next attempt uses bulk tier
-    raise RuntimeError("json extraction failed after retries")
-
-
-def _repair_json(text: str):
-    """Best-effort repair of common LLM JSON mistakes. Returns dict or None."""
-    import re
-    fixed = text
-    # 1. strip trailing commas before } or ]
-    fixed = re.sub(r",(\s*[}\]])", r"\1", fixed)
-    # 2. add missing comma between a closed value and a following key
-    fixed = re.sub(r'([}\]"\d])\s*\n\s*(")', r"\1,\n\2", fixed)
-    fixed = re.sub(r'([}\]"\d])\s+(")', r"\1, \2", fixed)
-    try:
-        return json.loads(fixed)
-    except json.JSONDecodeError:
-        return None
+        except (json.JSONDecodeError, RuntimeError) as e:
+            if attempt == 0 and isinstance(e, json.JSONDecodeError):
+                messages.append({"role": "user",
+                                 "content": "Your last response was not valid JSON. Return ONLY valid JSON."})
+                continue
+            raise
+    raise RuntimeError("json extraction failed")
 
 
 def _strip_json_fence(text: str) -> str:

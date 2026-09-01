@@ -58,11 +58,18 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
-          MOCK: ${{ github.event.inputs.mock == 'true' && '1' || '0' }}
-          DRY_RUN: ${{ github.event.inputs.mock == 'true' && '1' || '0' }}
+          EDGE_URL: ${{ secrets.EDGE_URL }}
+          MOCK_INPUT: ${{ github.event.inputs.mock == 'true' && '1' || '0' }}
           N_FREE: "1"
           N_PAID: "2"
-        run: python3 engine/run_daily.py
+        run: |
+          S=$(curl -sf "$EDGE_URL/api/status" || echo '{}')
+          K=$(echo "$S" | python3 -c "import json,sys;print('1' if json.load(sys.stdin).get('kill') else '0')" 2>/dev/null || echo 0)
+          if [ "$K" = "1" ]; then echo "KILL SWITCH ON — aborting run"; exit 0; fi
+          D=$(echo "$S" | python3 -c "import json,sys;print('1' if json.load(sys.stdin).get('dry') else '0')" 2>/dev/null || echo 0)
+          if [ "$MOCK_INPUT" = "1" ]; then export MOCK=1 DRY_RUN=1; elif [ "$D" = "1" ]; then export DRY_RUN=1; fi
+          echo "guard: kill=$K dry=$DRY_RUN mock=$MOCK_INPUT"
+          python3 engine/run_daily.py
 
       - name: Commit state back (dedupe index, manifest, budgets)
         run: |

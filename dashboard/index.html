@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daemon Command Center</title>
+<style>
+  :root { --bg:#0a0e14; --panel:#11161f; --panel2:#161d29; --line:#1f2836;
+          --txt:#d7e0ea; --dim:#7d8a9c; --acc:#22d3ee; --ok:#34d399;
+          --warn:#fbbf24; --bad:#f87171; --paid:#a78bfa; --free:#34d399; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--txt); font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; padding:18px; }
+  header { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:16px; }
+  h1 { font-size:18px; letter-spacing:1px; color:#fff; }
+  .sub { color:var(--dim); font-size:11px; }
+  .pills { display:flex; gap:8px; flex-wrap:wrap; margin-left:auto; }
+  .pill { border:1px solid var(--line); background:var(--panel); padding:4px 10px; border-radius:99px; font-size:11px; display:flex; align-items:center; gap:6px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--dim); }
+  .dot.ok { background:var(--ok); box-shadow:0 0 8px var(--ok); }
+  .dot.bad { background:var(--bad); box-shadow:0 0 8px var(--bad); }
+  .dot.warn { background:var(--warn); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:14px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .card h2 { font-size:12px; letter-spacing:1.5px; text-transform:uppercase; color:var(--acc); margin-bottom:10px; }
+  button { background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:8px 12px; cursor:pointer; font:inherit; font-size:12px; }
+  button:hover { border-color:var(--acc); }
+  button.primary { background:var(--acc); color:#04222a; border:none; font-weight:700; }
+  button.danger { background:transparent; border-color:var(--bad); color:var(--bad); }
+  button.danger.active { background:var(--bad); color:#2a0505; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+  .item { border-top:1px solid var(--line); padding:8px 0; font-size:12px; }
+  .item:first-of-type { border-top:none; }
+  .tag { font-size:10px; padding:1px 7px; border-radius:99px; border:1px solid var(--line); }
+  .tag.free { color:var(--free); border-color:var(--free); }
+  .tag.paid { color:var(--paid); border-color:var(--paid); }
+  .tag.live { color:var(--ok); border-color:var(--ok); }
+  .tag.pending { color:var(--warn); border-color:var(--warn); }
+  a { color:var(--acc); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .muted { color:var(--dim); font-size:11px; }
+  .bar { height:4px; background:var(--panel2); border-radius:2px; margin-top:4px; overflow:hidden; }
+  .bar > div { height:100%; background:var(--acc); }
+  .toast { position:fixed; bottom:18px; right:18px; background:var(--panel2); border:1px solid var(--acc); border-radius:8px; padding:10px 14px; font-size:12px; opacity:0; transition:opacity .3s; }
+  .toast.show { opacity:1; }
+  input[type=checkbox] { accent-color:var(--acc); }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>⚡ DAEMON COMMAND CENTER</h1>
+    <div class="sub">The Algorithmic Daemon Concern · asset-bot · $0 infra</div>
+  </div>
+  <div class="pills">
+    <span class="pill"><span class="dot" id="d-worker"></span>WORKER</span>
+    <span class="pill"><span class="dot" id="d-kill"></span>KILL SWITCH <b id="kill-txt">?</b></span>
+    <span class="pill"><span class="dot" id="d-dry"></span>DRY RUN <b id="dry-txt">?</b></span>
+    <span class="pill" id="d-lastrun">LAST RUN —</span>
+  </div>
+</header>
+
+<div class="card" style="margin-bottom:14px">
+  <div class="row">
+    <button class="primary" onclick="dispatch('daily-cycle')">▶ RUN DAILY CYCLE</button>
+    <button class="primary" onclick="dispatch('content-posting')">▶ RUN CONTENT POST</button>
+    <label class="muted" style="display:flex;align-items:center;gap:6px">
+      <input type="checkbox" id="mock"> mock mode (no real posts)
+    </label>
+    <button id="btn-kill" class="danger" onclick="setFlag('kill_switch', !killState)">☠ KILL SWITCH</button>
+    <button onclick="setFlag('dry_run', !dryState)" id="btn-dry">🛟 DRY RUN</button>
+  </div>
+  <div class="muted">Kill switch aborts every scheduled run. Dry run generates everything but posts nothing to Whop. The control token is stored only in your browser.</div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>Review queue — paid assets</h2>
+    <div id="issues">loading…</div>
+  </div>
+
+  <div class="card">
+    <h2>Pipeline runs</h2>
+    <div id="runs">loading…</div>
+  </div>
+
+  <div class="card">
+    <h2>Assets</h2>
+    <div id="assets">loading…</div>
+  </div>
+
+  <div class="card">
+    <h2>Posts</h2>
+    <div id="posts">loading…</div>
+  </div>
+
+  <div class="card">
+    <h2>LLM provider budgets (today)</h2>
+    <div id="providers">loading…</div>
+  </div>
+
+  <div class="card">
+    <h2>Events (webhooks)</h2>
+    <div id="events">loading…</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const REPO = "simalidudu-boop/asset-bot";
+const WORKER = "https://asset-bot-edge.simalidudu.workers.dev";
+const GH = "https://api.github.com";
+let killState = null, dryState = null;
+
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 3200); }
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function token() { return localStorage.getItem("bot_token") || ""; }
+async function ensureToken() {
+  if (token()) return true;
+  const v = prompt("Control token (from setup) — stored only in this browser:");
+  if (v) { localStorage.setItem("bot_token", v.trim()); return true; }
+  toast("token required"); return false;
+}
+async function wfetch(path, opts = {}) {
+  const r = await fetch(WORKER + path, opts);
+  return r.json();
+}
+async function setFlag(key, val) {
+  if (!await ensureToken()) return;
+  const r = await wfetch("/api/set", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Bot-Token": token() },
+    body: JSON.stringify({ key, value: val }),
+  });
+  if (r.ok) { toast(`${key} → ${val ? "ON" : "OFF"}`); refreshStatus(); } else toast("failed: " + (r.error || ""));
+}
+async function dispatch(wf) {
+  if (!await ensureToken()) return;
+  const mock = document.getElementById("mock").checked;
+  const r = await wfetch("/api/dispatch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Bot-Token": token() },
+    body: JSON.stringify({ workflow: wf, mock }),
+  });
+  if (r.ok) { toast(`dispatched ${wf}${mock ? " (mock)" : ""}`); setTimeout(refreshAll, 4000); }
+  else toast("dispatch failed: " + (r.error || ""));
+}
+async function review(issue, command) {
+  if (!await ensureToken()) return;
+  const r = await wfetch("/api/comment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Bot-Token": token() },
+    body: JSON.stringify({ issue, command }),
+  });
+  if (r.ok) { toast(`sent ${command} on #${issue}`); setTimeout(refreshAll, 4000); }
+  else toast("failed: " + (r.error || ""));
+}
+
+// ---------- GitHub reads (public repo, no auth) ----------
+async function ghGet(path) {
+  const r = await fetch(GH + path, { headers: { Accept: "application/vnd.github+json" } });
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+async function ghFile(path) {
+  const d = await ghGet(`/repos/${REPO}/contents/${path}?t=${Date.now()}`);
+  return JSON.parse(atob(d.content.replace(/\s/g, "")));
+}
+
+async function refreshStatus() {
+  try {
+    const s = await wfetch("/api/status");
+    killState = s.kill; dryState = s.dry;
+    setDot("d-worker", true); setDot("d-kill", s.kill); setDot("d-dry", s.dry);
+    document.getElementById("kill-txt").textContent = s.kill ? "ON" : "OFF";
+    document.getElementById("dry-txt").textContent = s.dry ? "ON" : "OFF";
+    const bk = document.getElementById("btn-kill");
+    bk.classList.toggle("active", s.kill);
+  } catch { setDot("d-worker", false); }
+}
+function setDot(id, on) { const d = document.getElementById(id); d.className = "dot " + (on ? "ok" : "bad"); }
+
+async function refreshRuns() {
+  try {
+    const runs = (await ghGet(`/repos/${REPO}/actions/runs?per_page=8`)).workflow_runs;
+    const el = document.getElementById("runs");
+    el.innerHTML = runs.map(r => {
+      const icon = r.status === "completed" ? (r.conclusion === "success" ? "✅" : "❌") : (r.status === "in_progress" ? "⏳" : "🕒");
+      return `<div class="item">${icon} <a href="${r.html_url}" target="_blank">${esc(r.name)}</a>
+        <div class="muted">${r.event} · ${new Date(r.created_at).toLocaleString()} · ${r.conclusion || r.status}</div></div>`;
+    }).join("") || "<div class='muted'>no runs yet</div>";
+    const latest = runs.find(r => r.event === "schedule" || r.event === "workflow_dispatch");
+    if (latest) document.getElementById("d-lastrun").textContent =
+      `LAST ${new Date(latest.created_at).toLocaleTimeString()} ${latest.conclusion || latest.status}`;
+  } catch (e) { document.getElementById("runs").innerHTML = `<div class='muted'>error ${e}</div>`; }
+}
+
+async function refreshIssues() {
+  try {
+    const q = encodeURIComponent(`repo:${REPO} label:asset-review state:open`);
+    const res = await ghGet(`/search/issues?q=${q}`);
+    const el = document.getElementById("issues");
+    if (!res.items.length) { el.innerHTML = "<div class='muted'>queue empty — nothing awaiting approval</div>"; return; }
+    el.innerHTML = res.items.map(i => {
+      const title = i.title.replace("[Review] ", "");
+      return `<div class="item"><b>${esc(title)}</b>
+        <div class="muted">#${i.number} · ${new Date(i.created_at).toLocaleDateString()}</div>
+        <div class="row" style="margin-top:6px">
+          <button onclick="review(${i.number},'/approve')">✅ Approve</button>
+          <button onclick="review(${i.number},'/reject denied')">✖ Reject</button>
+          <a href="${i.html_url}" target="_blank" class="muted">open issue ↗</a>
+        </div></div>`;
+    }).join("");
+  } catch (e) { document.getElementById("issues").innerHTML = `<div class='muted'>error ${e}</div>`; }
+}
+
+async function refreshAssets() {
+  try {
+    const man = await ghFile("state/manifest.json");
+    const assets = (man.assets || []).slice(-12).reverse();
+    const el = document.getElementById("assets");
+    el.innerHTML = assets.map(a => `
+      <div class="item">
+        <span class="tag ${a.free ? 'free' : 'paid'}">${a.free ? 'FREE' : 'PAID'}</span>
+        ${a.page_url ? `<a href="${esc(a.page_url)}" target="_blank">${esc(a.title)}</a>` : esc(a.title)}
+        <span class="tag ${a.status === 'live' ? 'live' : 'pending'}">${esc(a.status || 'staged')}</span>
+        <div class="muted">${esc(a.kind || "")} · ${esc(a.topic || "")} · ${esc(a.created || "")}</div>
+      </div>`).join("") || "<div class='muted'>no assets yet — run the daily cycle</div>";
+  } catch { document.getElementById("assets").innerHTML = "<div class='muted'>state not published yet</div>"; }
+}
+
+async function refreshPosts() {
+  try {
+    const man = await ghFile("state/manifest.json");
+    const posts = (man.posts || []).slice(-15).reverse();
+    document.getElementById("posts").innerHTML = posts.map(p => `
+      <div class="item">📣 <b>${esc(p.title || p.asset)}</b>
+        <div class="muted">${esc(p.fmt || "")} · ${esc(p.lang || "en")} · ${esc(p.at || "")}</div>
+      </div>`).join("") || "<div class='muted'>no posts yet</div>";
+  } catch { document.getElementById("posts").innerHTML = "<div class='muted'>state not published yet</div>"; }
+}
+
+async function refreshProviders() {
+  try {
+    const dir = await ghGet(`/repos/${REPO}/contents/state?t=${Date.now()}`);
+    const files = dir.filter(f => f.name.startsWith("llm_")).map(f => f.name);
+    const el = document.getElementById("providers");
+    if (!files.length) { el.innerHTML = "<div class='muted'>no budget files yet</div>"; return; }
+    el.innerHTML = await Promise.all(files.map(async f => {
+      const b = await ghFile("state/" + f);
+      const name = f.replace("llm_", "").replace(".json", "");
+      const pct = Math.min(100, Math.round((b.calls || 0) / 400 * 100));
+      return `<div class="item">${esc(name)} <span class="muted">(${b.calls || 0} calls today)</span>
+        <div class="bar"><div style="width:${pct}%"></div></div></div>`;
+    })).then(a => a.join(""));
+  } catch { document.getElementById("providers").innerHTML = "<div class='muted'>—</div>"; }
+}
+
+async function refreshEvents() {
+  try {
+    const d = await ghGet(`/repos/${REPO}/contents/state/events.jsonl?t=${Date.now()}`);
+    const lines = atob(d.content.replace(/\s/g, "")).trim().split("\n").filter(Boolean).slice(-10).reverse();
+    document.getElementById("events").innerHTML = lines.map(l => {
+      try { const e = JSON.parse(l);
+        return `<div class="item">💰 <b>${esc(e.kind)}</b>
+          <div class="muted">${esc(e.at || "")}</div></div>`;
+      } catch { return ""; }
+    }).join("") || "<div class='muted'>no events yet</div>";
+  } catch { document.getElementById("events").innerHTML = "<div class='muted'>no events yet</div>"; }
+}
+
+function refreshAll() {
+  refreshStatus(); refreshRuns(); refreshIssues();
+  refreshAssets(); refreshPosts(); refreshProviders(); refreshEvents();
+}
+refreshAll();
+setInterval(refreshAll, 60000);
+</script>
+</body>
+</html>
