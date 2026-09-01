@@ -58,7 +58,6 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
-          EDGE_URL: ${{ secrets.EDGE_URL }}
           MOCK_INPUT: ${{ github.event.inputs.mock == 'true' && '1' || '0' }}
           N_FREE: "1"
           N_PAID: "2"
