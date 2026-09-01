@@ -110,7 +110,6 @@
 <script>
 const REPO = "simalidudu-boop/asset-bot";
 const WORKER = "https://asset-bot-edge.simalidudu.workers.dev";
-const GH = "https://api.github.com";
 let killState = null, dryState = null;
 
 function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 3200); }
@@ -157,14 +156,14 @@ async function review(issue, command) {
   else toast("failed: " + (r.error || ""));
 }
 
-// ---------- GitHub reads (public repo, no auth) ----------
+// ---------- GitHub reads (proxied through the Worker — no browser rate limits) ----------
 async function ghGet(path) {
-  const r = await fetch(GH + path, { headers: { Accept: "application/vnd.github+json" } });
+  const r = await fetch(`${WORKER}/api/github?path=${encodeURIComponent(path)}`);
   if (!r.ok) throw new Error(r.status);
   return r.json();
 }
 async function ghFile(path) {
-  const d = await ghGet(`/repos/${REPO}/contents/${path}?t=${Date.now()}`);
+  const d = await ghGet(`/repos/${REPO}/contents/${path}`);
   return JSON.parse(atob(d.content.replace(/\s/g, "")));
 }
 

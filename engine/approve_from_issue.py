@@ -45,6 +45,12 @@ def main():
         review.comment(number, "❌ Could not read the payload block from the "
                                "issue body. Nothing was published.")
         return
+    # dedup: if a previous /approve already published this issue, don't
+    # create a second plan / duplicate publish
+    comments = review._gh("GET", f"/issues/{number}/comments")
+    if any("✅ Published!" in (c.get("body") or "") for c in comments):
+        print(f"issue #{number} already published — skipping duplicate")
+        return
     try:
         res = publish.approve(payload["product_id"], payload["price"],
                               payload.get("pack", {}).get("metadata"))

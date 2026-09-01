@@ -29,6 +29,9 @@ function json(data: unknown, status = 200) {
   });
 }
 
+// per-isolate cache for the GitHub read proxy (45s TTL applied at read time)
+const ghCache = new Map<string, { t: number; body: string; status: number }>();
+
 function authed(env: Env, request: Request): boolean {
   const t = request.headers.get("X-Bot-Token") ?? "";
   return !!env.BOT_TOKEN && t === env.BOT_TOKEN;
@@ -121,6 +124,36 @@ export default {
       const kill = (await env.BOT_STATE.get("kill_switch")) === "1";
       const dry = (await env.BOT_STATE.get("dry_run")) === "1";
       return json({ ok: true, kill, dry, service: "asset-bot-edge" });
+    }
+
+    // ---- GitHub read proxy (dashboard uses this instead of hitting the
+    //      unauthenticated API from the browser — no more 403 rate limits) ----
+    if (p === "/api/github" && request.method === "GET") {
+      const path = url.searchParams.get("path") ?? "";
+      if (!/^\/(repos\/|search\/issues)/.test(path)) {
+        return json({ error: "path not allowed" }, 400);
+      }
+      const cached = ghCache.get(path);
+      if (cached && Date.now() - cached.t < 45000) {
+        return new Response(cached.body, { headers: { "content-type": "application/json" } });
+      }
+      try {
+        const res = await fetch(`https://api.github.com${path}`, {
+          headers: {
+            Authorization: `Bearer ${env.GH_TOKEN}`,
+            "User-Agent": "asset-bot-edge",
+            Accept: "application/vnd.github+json",
+          },
+        });
+        const text = await res.text();
+        if (!res.ok) {
+          return json({ error: `github ${res.status}`, detail: text.slice(0, 400) }, res.status);
+        }
+        ghCache.set(path, { t: Date.now(), body: text, status: res.status });
+        return new Response(text, { headers: { "content-type": "application/json" } });
+      } catch (e) {
+        return json({ error: String(e) }, 502);
+      }
     }
 
     // ---- set flags ----
