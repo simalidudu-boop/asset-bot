@@ -58,6 +58,18 @@ def _log(action: str, payload: dict):
     print(f"[publish]{' DRY ' if DRY else ' LIVE '} {action}: {json.dumps(payload)[:400]}")
 
 
+def find_existing(slug: str) -> dict | None:
+    """Find a previously created product by metadata.slug (re-run safety)."""
+    try:
+        prods = whop.list_products(COMPANY_ID)
+        for p in prods.get("data", []):
+            if (p.get("metadata") or {}).get("slug") == slug:
+                return p
+    except Exception as e:
+        print(f"[publish] product lookup failed: {e}")
+    return None
+
+
 def update_product(product_id: str, visibility: str = "visible") -> dict:
     return whop._request("PATCH", f"/products/{product_id}", {"visibility": visibility})
 
@@ -78,12 +90,7 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
         "visibility": "visible" if price == 0.0 else "hidden",
         "metadata": {"slug": slug, "kind": pack.get("category"),
                      "generated": True, "free": price == 0.0, "price": price},
-        "external_identifier": f"bot-{slug}",
     }
-    if image_urls:
-        # gallery_images is not accepted by product create in all API
-        # versions — set after creation via PATCH when supported
-        payload.pop("gallery_images", None)
 
     if DRY:
         _log("product", payload)
@@ -91,7 +98,12 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
         return {"dry_run": True, "slug": slug, "price": price,
                 "files": file_urls, "status": "dry"}
 
-    product = whop.create_product(**payload)
+    # idempotency: reuse an existing product created for this slug
+    product = find_existing(slug)
+    if product:
+        print(f"[publish] reusing existing product {product.get('id')} for {slug}")
+    else:
+        product = whop.create_product(**payload)
     product_id = product.get("id")
     page_url = f"{PRODUCT_PAGE}/{product.get('route')}" if PRODUCT_PAGE and product.get("route") else ""
     result = {"slug": slug, "product_id": product_id, "page_url": page_url,

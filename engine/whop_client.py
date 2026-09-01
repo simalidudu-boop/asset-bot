@@ -61,8 +61,8 @@ def my_companies():
 # ---------- products & plans ----------
 def create_product(company_id: str, title: str, description: str = "",
                    headline: str = "", visibility: str = "visible",
-                   metadata: dict | None = None, external_id: str | None = None,
-                   gallery_images: list | None = None):
+                   metadata: dict | None = None, external_identifier: str | None = None,
+                   gallery_images: list | None = None, **extra):
     payload = {
         "company_id": company_id,
         "title": title,
@@ -71,10 +71,11 @@ def create_product(company_id: str, title: str, description: str = "",
         "visibility": visibility,
         "metadata": metadata or {},
     }
-    if external_id:
-        payload["external_identifier"] = external_id  # idempotent upsert
+    if external_identifier:
+        payload["external_identifier"] = external_identifier  # idempotent upsert
     if gallery_images:
         payload["gallery_images"] = gallery_images
+    payload.update({k: v for k, v in extra.items() if v is not None})
     return _request("POST", "/products", payload)
 
 

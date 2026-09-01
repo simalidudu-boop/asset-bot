@@ -236,18 +236,37 @@ def chat(messages: list, max_tokens: int = 2000, temperature: float = 0.7,
 
 
 def get_json(messages: list, max_tokens: int = 3000, quality: bool = True):
-    """chat() with JSON mode + a repair pass on parse failure."""
-    for attempt in range(2):
+    """chat() with JSON mode + repair pass + provider diversification."""
+    for attempt in range(3):
         try:
-            text = chat(messages, max_tokens=max_tokens, json_mode=True, quality=quality)[0]
+            text = chat(messages, max_tokens=max_tokens, json_mode=True,
+                        quality=(quality and attempt == 0))[0]
             return json.loads(_strip_json_fence(text))
-        except (json.JSONDecodeError, RuntimeError) as e:
-            if attempt == 0 and isinstance(e, json.JSONDecodeError):
-                messages.append({"role": "user",
-                                 "content": "Your last response was not valid JSON. Return ONLY valid JSON."})
-                continue
-            raise
-    raise RuntimeError("json extraction failed")
+        except json.JSONDecodeError:
+            fixed = _repair_json(_strip_json_fence(text))
+            if fixed is not None:
+                return fixed
+            messages.append({"role": "user",
+                             "content": "Your last response was NOT valid JSON "
+                                        "(syntax errors). Return ONLY valid JSON."})
+        except RuntimeError:
+            pass  # provider tier exhausted -> next attempt uses bulk tier
+    raise RuntimeError("json extraction failed after retries")
+
+
+def _repair_json(text: str):
+    """Best-effort repair of common LLM JSON mistakes. Returns dict or None."""
+    import re
+    fixed = text
+    # 1. strip trailing commas before } or ]
+    fixed = re.sub(r",(\s*[}\]])", r"\1", fixed)
+    # 2. add missing comma between a closed value and a following key
+    fixed = re.sub(r'([}\]"\d])\s*\n\s*(")', r"\1,\n\2", fixed)
+    fixed = re.sub(r'([}\]"\d])\s+(")', r"\1, \2", fixed)
+    try:
+        return json.loads(fixed)
+    except json.JSONDecodeError:
+        return None
 
 
 def _strip_json_fence(text: str) -> str:
