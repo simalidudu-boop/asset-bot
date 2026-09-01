@@ -12,5 +12,8 @@
   "r2_buckets": [
     { "binding": "PROMO_BUCKET", "bucket_name": "asset-bot-promo" }
   ],
+  "ai": {
+    "binding": "AI"
+  },
   "routes": []
 }

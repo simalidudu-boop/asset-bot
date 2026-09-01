@@ -17,9 +17,8 @@ export interface Env {
   GH_OWNER: string;
   GH_REPO: string;
   GH_TOKEN: string;
-  CLOUDFLARE_ACCOUNT_ID: string;
-  CLOUDFLARE_API_TOKEN: string;
   BOT_TOKEN: string; // shared secret for uploads from GitHub Actions
+  AI: any; // Workers AI binding (native auth, no token needed)
 }
 
 function json(data: unknown, status = 200) {
@@ -77,22 +76,14 @@ export default {
         const { prompt, name } = (await request.json()) as { prompt: string; name?: string };
         if (!prompt) return json({ error: "prompt required" }, 400);
 
-        const aiUrl =
-          `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}` +
-          `/ai/run/@cf/black-forest-labs/flux-1-schnell`;
-        const aiRes = await fetch(aiUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ prompt, num_steps: 4 }),
-        });
-        if (!aiRes.ok) return json({ error: `AI upstream ${aiRes.status}` }, 502);
-        const ai = (await aiRes.json()) as { success: boolean; result?: { image?: string }; errors?: unknown };
-        if (!ai.success || !ai.result?.image) return json({ error: ai.errors ?? "no image" }, 502);
+        // Workers AI binding — platform auth, billed in free neurons
+        const ai = (await env.AI.run("@cf/black-forest-labs/flux-1-schnell", {
+          prompt,
+          num_steps: 4,
+        })) as { image?: string };
+        if (!ai.image) return json({ error: "no image in AI response" }, 502);
 
-        const bytes = Uint8Array.from(atob(ai.result.image), (c) => c.charCodeAt(0));
+        const bytes = Uint8Array.from(atob(ai.image), (c) => c.charCodeAt(0));
         const keyName = `${name ?? Date.now()}-${crypto.randomUUID().slice(0, 8)}.jpg`;
         await env.PROMO_BUCKET.put(keyName, bytes, { httpMetadata: { contentType: "image/jpeg" } });
         return json({ ok: true, url: `/promo/${keyName}` });
