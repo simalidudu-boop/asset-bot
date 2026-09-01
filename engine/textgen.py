@@ -98,7 +98,8 @@ def _budget_bump(name: str):
 def _post_json(url: str, payload: dict, headers: dict, timeout: int = 120):
     req = urllib.request.Request(
         url, data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json", **headers}, method="POST")
+        headers={"Content-Type": "application/json",
+                 "User-Agent": "Mozilla/5.0 (asset-bot)", **headers}, method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read())
 
