@@ -7,10 +7,8 @@ on:
   repository_dispatch:
     types:
       - whop_payment_succeeded
-      - whop_membership_activated
+      - whop_membership_went_valid
       - whop_membership_went_invalid
-      - whop_payout_completed
-      - whop_unknown
 
 permissions:
   contents: write
