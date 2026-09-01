@@ -1,0 +1,59 @@
+<!doctype html><html><head><meta charset='utf-8'><title>zero-click-content-machine</title><style>body{font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:800px;margin:2rem auto;line-height:1.6}h1,h2{color:#111}code{background:#f4f4f4;padding:2px 4px}pre{background:#0d1117;color:#e6edf3;padding:1rem;border-radius:8px}</style></head><body><h1>Zero-Click Content Machine</h1>
+<p><strong>Automate a week of content in one prompt</strong></p>
+<blockquote>
+<p>creators and solo founders who sell digital products · Difficulty: intermediate</p>
+</blockquote>
+<p>A curated pack of prompts that turn one topic into a full content calendar: hooks, posts, and CTAs. Free starter pack.</p>
+<hr />
+<h2>Prompts</h2>
+<h3>1. The Content Matrix</h3>
+<p><strong>Use when:</strong> expand one topic into 5 angles</p>
+<pre><code class="language-text">You are a content strategist. Given TOPIC and AUDIENCE, output a 5-cell matrix: hook, bridge, value, proof, CTA. Be specific and non-generic.
+</code></pre>
+<p><strong>Returns:</strong> A table with 5 filled rows, each tailored to the audience.</p>
+<h3>2. Voice Cloner</h3>
+<p><strong>Use when:</strong> match your brand voice</p>
+<pre><code class="language-text">Here are 3 samples of my writing: [SAMPLES]. Extract the voice pattern (sentence length, tone, vocabulary) and rewrite: [NEW TEXT] in that voice.
+</code></pre>
+<p><strong>Returns:</strong> Rewritten text + a 3-line voice pattern summary.</p>
+<h3>3. Hook Lab</h3>
+<p><strong>Use when:</strong> 10 scroll-stopping openers</p>
+<pre><code class="language-text">Write 10 opening lines for a post about [TOPIC]. Rules: under 12 words, no cliches, each triggers a different emotion. Rank them.
+</code></pre>
+<p><strong>Returns:</strong> 10 ranked hooks with the emotion each one triggers.</p>
+<hr />
+<h2>Skills</h2>
+<h3>1. Auto-title generator</h3>
+<p><em>mine competitor titles for patterns</em></p>
+<ol>
+<li>Paste 3 competitor titles into the prompt.</li>
+<li>Ask the model to find the pattern (power words, numbers, curiosity gaps).</li>
+<li>Generate 10 titles for YOUR topic in that pattern.</li>
+<li>Pick the best with a second model pass.</li>
+</ol>
+<pre><code class="language-python">titles = ['3 titles here']
+pattern = llm('what pattern?', titles)
+new = llm(f'10 titles in this pattern: {pattern}', topic)
+print(new)
+</code></pre>
+<p><em>Two-pass generation: pattern extraction, then creation.</em></p>
+<h3>2. Daily post batcher</h3>
+<p><em>one prompt, seven posts</em></p>
+<ol>
+<li>Give the model your asset link and one topic.</li>
+<li>Ask for 7 post variants across 4 formats (text, image idea, video script, question).</li>
+<li>Request a different CTA angle per post.</li>
+<li>Post one variant per day, staggered.</li>
+</ol>
+<pre><code class="language-python">posts = llm('7 variants for TOPIC, link: LINK', formats=['text','image','video','q'])
+for p in posts: post(p)
+</code></pre>
+<p><em>Batch generation keeps voice consistent across the week.</em></p>
+<hr />
+<h2>Level up</h2>
+<p>The Pro version adds 30 prompts, 8 video scripts and a fill-in-the-blank content system you can run daily.</p>
+<p>👉 <a href="{PRO_LINK}">Get the Pro version</a></p>
+<p>Want a pack built for YOUR niche? Custom prompt packs start at $150.</p>
+<p>👉 <a href="{CUSTOM_WORK_LINK}">Request custom work</a></p>
+<hr />
+<p><em>Generated 2026-09-01 · topic: Prompt engineering for small business owners</em></p></body></html>

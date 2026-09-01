@@ -1,0 +1,36 @@
+{
+  "assets": [
+    {
+      "slug": "zero-click-content-machine",
+      "title": "Zero-Click Content Machine",
+      "topic": "AI content automation for creators",
+      "kind": "prompt-pack",
+      "page_url": "",
+      "created": "2026-09-01T11:02:51Z"
+    },
+    {
+      "slug": "zero-click-content-machine",
+      "title": "Zero-Click Content Machine",
+      "topic": "Prompt engineering for small business owners",
+      "kind": "prompt-pack",
+      "page_url": "",
+      "created": "2026-09-01T11:02:51Z"
+    }
+  ],
+  "posts": [
+    {
+      "asset": "zero-click-content-machine",
+      "fmt": "text",
+      "lang": "en",
+      "title": "Zero-Click Content Machine",
+      "at": "2026-09-01T11:03:07Z"
+    },
+    {
+      "asset": "zero-click-content-machine",
+      "fmt": "text",
+      "lang": "fr",
+      "title": "Zero-Click Content Machine",
+      "at": "2026-09-01T11:03:13Z"
+    }
+  ]
+}

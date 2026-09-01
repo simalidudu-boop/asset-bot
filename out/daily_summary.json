@@ -1,0 +1,53 @@
+{
+  "date": "2026-09-01",
+  "results": [
+    {
+      "dry_run": true,
+      "slug": "zero-click-content-machine",
+      "price": 0.0,
+      "files": [
+        {
+          "name": "zero-click-content-machine.pdf",
+          "url": "(dry) /promo/deliverables/zero-click-content-machine/zero-click-content-machine.pdf"
+        },
+        {
+          "name": "zero-click-content-machine.docx",
+          "url": "(dry) /promo/deliverables/zero-click-content-machine/zero-click-content-machine.docx"
+        },
+        {
+          "name": "zero-click-content-machine.zip",
+          "url": "(dry) /promo/deliverables/zero-click-content-machine/zero-click-content-machine.zip"
+        },
+        {
+          "name": "pack.html",
+          "url": "(dry) /promo/deliverables/zero-click-content-machine/pack.html"
+        }
+      ],
+      "status": "dry"
+    },
+    {
+      "dry_run": true,
+      "slug": "zero-click-content-machine",
+      "price": 5,
+      "files": [
+        {
+          "name": "zero-click-content-machine.pdf",
+          "url": "(dry) /promo/deliverables/zero-click-content-machine/zero-click-content-machine.pdf"
+        },
+        {
+          "name": "zero-click-content-machine.docx",
+          "url": "(dry) /promo/deliverables/zero-click-content-machine/zero-click-content-machine.docx"
+        },
+        {
+          "name": "zero-click-content-machine.zip",
+          "url": "(dry) /promo/deliverables/zero-click-content-machine/zero-click-content-machine.zip"
+        },
+        {
+          "name": "pack.html",
+          "url": "(dry) /promo/deliverables/zero-click-content-machine/pack.html"
+        }
+      ],
+      "status": "dry"
+    }
+  ]
+}

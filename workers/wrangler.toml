@@ -1,0 +1,16 @@
+{
+  "name": "asset-bot-edge",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "vars": {
+    "GH_OWNER": "YOUR_GITHUB_USERNAME",
+    "GH_REPO": "asset-bot"
+  },
+  "kv_namespaces": [
+    { "binding": "BOT_STATE", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+  ],
+  "r2_buckets": [
+    { "binding": "PROMO_BUCKET", "bucket_name": "asset-bot-promo" }
+  ],
+  "routes": []
+}

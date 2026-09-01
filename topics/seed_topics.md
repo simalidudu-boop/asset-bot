@@ -1,0 +1,17 @@
+# Seed topics — one per line, bot expands each into a full pack
+
+- AI content automation for creators
+- Prompt engineering for small business owners
+- Automating social media with AI agents
+- ChatGPT prompt systems for freelancers
+- AI image prompts for product marketing
+- Writing emails with AI
+- AI research assistants for content teams
+- Automating client work with AI workflows
+- AI video scripting
+- Repurposing content with AI
+- AI tools for digital product sellers
+- Building AI prompt libraries
+- No-code AI automations
+- AI for copywriting landing pages
+- Midjourney/Flux prompt patterns for branding

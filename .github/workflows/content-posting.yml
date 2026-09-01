@@ -1,0 +1,67 @@
+name: content-posting
+# Phase C: 1 content piece every 3h (8 runs/day -> 6-8 posts/day),
+# variant A to the public space, variant B to your own forum.
+on:
+  schedule:
+    # offsets 01,04,07,10,13,16,19,22 UTC — avoids the asset runs at 00/06/12/18
+    - cron: "0 1,4,7,10,13,16,19,22 * * *"
+  workflow_dispatch:
+    inputs:
+      mock:
+        description: "Mock mode (no LLM keys needed)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore state
+        uses: actions/cache@v4
+        with:
+          path: state
+          key: bot-state-${{ github.run_id }}
+          restore-keys: bot-state-
+
+      - name: Install deps
+        run: pip install -q weasyprint python-docx markdown
+
+      - name: Generate + post one piece
+        env:
+          WHOP_API_KEY: ${{ secrets.WHOP_API_KEY }}
+          WHOP_COMPANY_ID: ${{ secrets.WHOP_COMPANY_ID }}
+          OWN_FORUM_ID: ${{ secrets.OWN_FORUM_ID }}
+          PUBLIC_EXPERIENCE: ${{ secrets.PUBLIC_EXPERIENCE }}
+          PRODUCT_PAGE_BASE: ${{ secrets.PRODUCT_PAGE_BASE }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          MOCK: ${{ github.event.inputs.mock == 'true' && '1' || '0' }}
+          N_POSTS: "1"
+          POST_LANGS: "en"
+          POST_STAGGER_SEC: "0"
+        run: python3 engine/run_content.py
+
+      - name: Commit state back
+        run: |
+          git config user.name "asset-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add state/ 2>/dev/null || true
+          git commit -m "bot: posts update $(date -u +%F)" || echo "nothing to commit"
+          git push || echo "push skipped (no changes)"

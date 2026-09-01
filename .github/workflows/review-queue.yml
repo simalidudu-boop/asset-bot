@@ -1,0 +1,48 @@
+name: review-queue
+# You comment /approve or /reject on a paid-asset review Issue.
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  handle:
+    runs-on: ubuntu-latest
+    if: contains(github.event.comment.body, '/approve') || contains(github.event.comment.body, '/reject')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install -q weasyprint python-docx markdown
+      - name: Process command
+        env:
+          WHOP_API_KEY: ${{ secrets.WHOP_API_KEY }}
+          WHOP_COMPANY_ID: ${{ secrets.WHOP_COMPANY_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          if echo "${{ github.event.comment.body }}" | grep -q "/approve"; then
+            python3 engine/approve_from_issue.py
+          else
+            python3 - <<'EOF'
+            import json, os, urllib.request
+            # /reject -> comment + close, product stays hidden
+            event = json.loads(open(os.environ["GITHUB_EVENT_PATH"]).read())
+            n = event["issue"]["number"]
+            req = urllib.request.Request(
+                f'https://api.github.com/repos/{os.environ["GITHUB_REPOSITORY"]}/issues/{n}',
+                data=json.dumps({"state": "closed"}).encode(), method="PATCH")
+            req.add_header("Authorization", f'Bearer {os.environ["GITHUB_TOKEN"]}')
+            req.add_header("Accept", "application/vnd.github+json")
+            urllib.request.urlopen(req)
+            print("issue closed (product stays hidden)")
+            EOF
+          fi
