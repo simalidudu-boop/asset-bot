@@ -45,6 +45,7 @@ def upload_to_edge(path: Path, prefix: str) -> str:
                                  method="PUT")
     req.add_header("X-Bot-Token", BOT_TOKEN)
     req.add_header("Content-Type", "application/octet-stream")
+    req.add_header("User-Agent", "Mozilla/5.0 (asset-bot)")
     with urllib.request.urlopen(req, timeout=120) as r:
         data = json.loads(r.read())
     return f"{EDGE}{data['url']}"
