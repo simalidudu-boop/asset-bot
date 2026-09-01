@@ -18,7 +18,7 @@ DRY = os.environ.get("DRY_RUN") == "1"
 COMPANY_ID = os.environ.get("WHOP_COMPANY_ID", "")
 OWN_FORUM_ID = os.environ.get("OWN_FORUM_ID", "")           # members-only forum
 PUBLIC_FORUM_ID = os.environ.get("PUBLIC_FORUM_ID", "")     # explicit exp_ of public forum
-PUBLIC_EXPERIENCE = os.environ.get("PUBLIC_EXPERIENCE", "public")
+PUBLIC_EXPERIENCE = os.environ.get("PUBLIC_EXPERIENCE") or "public"
 STAGGER = int(os.environ.get("POST_STAGGER_SEC", "600"))
 MAX_POSTS_PER_RUN = int(os.environ.get("MAX_POSTS_PER_RUN", "4"))
 

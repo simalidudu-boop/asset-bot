@@ -31,6 +31,7 @@ def _request(method: str, path: str, payload: dict | None = None,
     for attempt in range(retries):
         req = urllib.request.Request(url, data=data, method=method)
         req.add_header("Authorization", f"Bearer {key}")
+        req.add_header("User-Agent", "Mozilla/5.0 (asset-bot)")
         if data:
             req.add_header("Content-Type", "application/json")
         try:

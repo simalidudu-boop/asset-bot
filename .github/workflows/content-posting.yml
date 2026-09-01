@@ -43,7 +43,8 @@ jobs:
           WHOP_API_KEY: ${{ secrets.WHOP_API_KEY }}
           WHOP_COMPANY_ID: ${{ secrets.WHOP_COMPANY_ID }}
           OWN_FORUM_ID: ${{ secrets.OWN_FORUM_ID }}
-          PUBLIC_EXPERIENCE: ${{ secrets.PUBLIC_EXPERIENCE }}
+          PUBLIC_FORUM_ID: ${{ secrets.PUBLIC_FORUM_ID }}
+          PUBLIC_EXPERIENCE: ${{ secrets.PUBLIC_EXPERIENCE || 'public' }}
           PRODUCT_PAGE_BASE: ${{ secrets.PRODUCT_PAGE_BASE }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
