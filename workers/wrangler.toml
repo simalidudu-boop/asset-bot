@@ -3,7 +3,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "vars": {
-    "GH_OWNER": "YOUR_GITHUB_USERNAME",
+    "GH_OWNER": "simalidudu-boop",
     "GH_REPO": "asset-bot"
   },
   "kv_namespaces": [
