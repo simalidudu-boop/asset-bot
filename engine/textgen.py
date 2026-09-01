@@ -47,14 +47,9 @@ PROVIDERS = {
         "daily_budget": 200,
         "extra_headers": {},
     },
-    "gh_models": {
-        "url": "https://models.inference.ai.azure.com/chat/completions",
-        "env_key": "GH_MODELS_TOKEN",   # a GitHub token works here
-        "model": "gpt-4o-mini",
-        "quality": "gpt-4o-mini",
-        "daily_budget": 40,
-        "extra_headers": {},
-    },
+    # NOTE: GitHub Models was retired by GitHub in 2026 (scheduled
+    # retirement brownout) — removed from the cascade. GH_MODELS_TOKEN is
+    # no longer used.
     "gemini": {
         # Gemini native (not OpenAI-compatible) -> handled in _call_provider
         "url": None,
@@ -82,8 +77,8 @@ PROVIDERS = {
     },
 }
 
-QUALITY_ORDER = ["mistral", "gemini", "xai", "groq", "cerebras", "gh_models", "cloudflare"]
-BULK_ORDER = ["groq", "cerebras", "gh_models", "gemini", "cloudflare", "mistral"]
+QUALITY_ORDER = ["mistral", "gemini", "xai", "groq", "cerebras", "cloudflare"]
+BULK_ORDER = ["groq", "cerebras", "gemini", "cloudflare", "mistral"]
 
 
 def _budget_path(name: str) -> Path:

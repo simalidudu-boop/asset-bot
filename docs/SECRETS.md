@@ -8,7 +8,7 @@ LLM keys can be added later — the $0 router skips missing providers.
 | Secret | Required | Where to get it |
 |---|---|---|
 | `GH_TOKEN` | ✅ (set by finish_github.py) | same classic PAT used for setup |
-| `GH_MODELS_TOKEN` | ✅ (set by finish_github.py) | same PAT — GitHub Models accepts GitHub tokens |
+| `GH_MODELS_TOKEN` | ❌ retired (GitHub Models shut down 2026) | removed from router |
 | `WHOP_API_KEY` | ✅ go-live | whop.com → Developer Portal → Account API keys (perms: `forum:post:create`, `access_pass:create`, products/plans) |
 | `WHOP_COMPANY_ID` | ✅ go-live | `biz_...` — from Whop dashboard URL or `/accounts/me` + `/companies` |
 | `OWN_FORUM_ID` | ✅ go-live | `exp_...` of your members-only forum experience |
