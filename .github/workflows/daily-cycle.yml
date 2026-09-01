@@ -61,6 +61,7 @@ jobs:
           GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
           MOCK: ${{ github.event.inputs.mock == 'true' && '1' || '0' }}
+          DRY_RUN: ${{ github.event.inputs.mock == 'true' && '1' || '0' }}
           N_FREE: "1"
           N_PAID: "2"
         run: python3 engine/run_daily.py
