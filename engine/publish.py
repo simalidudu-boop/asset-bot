@@ -6,8 +6,9 @@ Flow:
 - PAID asset  -> product created HIDDEN (no plan) + review Issue opened.
                  /approve  -> PATCH visible + plan at price (approve_from_issue.py)
                  /reject   -> stays hidden / archived manually.
-- Deliverable files are ALWAYS uploaded to R2 (public CDN) so the review
-  Issue can link real files and approval needs no rebuild.
+- Deliverable files are uploaded to GitHub Releases (free public CDN, no
+  card required) so the review Issue can link real files and approval needs
+  no rebuild. R2 remains an optional later upgrade via upload_to_edge().
 
 Pricing: prompt packs $5-29, skill sets $19-49, custom work $150-1000.
 """
@@ -38,6 +39,8 @@ def price_for(pack: dict) -> float:
 
 
 def upload_to_edge(path: Path, prefix: str) -> str:
+    """Legacy R2 path — only used if Cloudflare R2 is enabled later.
+    The default delivery layer is GitHub Releases (see hosting.py)."""
     if not EDGE or not BOT_TOKEN:
         raise RuntimeError("EDGE_URL / BOT_TOKEN not set")
     name = f"{prefix}/{path.name}"
@@ -45,6 +48,7 @@ def upload_to_edge(path: Path, prefix: str) -> str:
                                  method="PUT")
     req.add_header("X-Bot-Token", BOT_TOKEN)
     req.add_header("Content-Type", "application/octet-stream")
+    req.add_header("User-Agent", "Mozilla/5.0 (asset-bot)")
     with urllib.request.urlopen(req, timeout=120) as r:
         data = json.loads(r.read())
     return f"{EDGE}{data['url']}"
@@ -58,22 +62,13 @@ def update_product(product_id: str, visibility: str = "visible") -> dict:
     return whop._request("PATCH", f"/products/{product_id}", {"visibility": visibility})
 
 
-def publish_asset(pack: dict, slug: str, deliverables: list[Path],
-                  images: list[str], description: str) -> dict:
-    price = 0.0 if pack.get("free") else price_for(pack)
+def publish_asset(pack: dict, slug: str, file_urls: list[dict],
+                  image_urls: list[str], description: str) -> dict:
+    """Create product; free -> $0 plan live now, paid -> review Issue.
 
-    # 1) upload deliverables to R2 (always, so approval needs no rebuild)
-    file_urls = []
-    if DRY:
-        file_urls = [{"name": f.name, "url": f"(dry) /promo/deliverables/{slug}/{f.name}"}
-                     for f in deliverables]
-    else:
-        for f in deliverables:
-            try:
-                file_urls.append({"name": f.name,
-                                  "url": upload_to_edge(f, f"deliverables/{slug}")})
-            except Exception as e:
-                print(f"[publish] file upload failed {f.name}: {e}")
+    file_urls: [{"name", "url"}] from hosting.py (GitHub Releases).
+    image_urls: public promo image URLs (gallery)."""
+    price = 0.0 if pack.get("free") else price_for(pack)
 
     payload = {
         "company_id": COMPANY_ID,
@@ -85,8 +80,10 @@ def publish_asset(pack: dict, slug: str, deliverables: list[Path],
                      "generated": True, "free": price == 0.0, "price": price},
         "external_identifier": f"bot-{slug}",
     }
-    if images:
-        payload["gallery_images"] = [{"url": u} for u in images]
+    if image_urls:
+        # gallery_images is not accepted by product create in all API
+        # versions — set after creation via PATCH when supported
+        payload.pop("gallery_images", None)
 
     if DRY:
         _log("product", payload)
@@ -100,12 +97,20 @@ def publish_asset(pack: dict, slug: str, deliverables: list[Path],
     result = {"slug": slug, "product_id": product_id, "page_url": page_url,
               "files": file_urls, "price": price}
 
+    if image_urls:
+        try:
+            whop._request("PATCH", f"/products/{product_id}",
+                          {"gallery_images": [{"url": u} for u in image_urls]})
+            print(f"[publish] gallery images set on {product_id}")
+        except Exception as e:
+            print(f"[publish] gallery_images PATCH unsupported ({e}) — continuing")
+
     if price == 0.0:
         plan = whop.create_plan(product_id=product_id, initial_price=0.0)
         result["plan_id"] = plan.get("id")
         result["status"] = "live"
     else:
-        issue = review.open_review_issue(pack, slug, price, images, file_urls,
+        issue = review.open_review_issue(pack, slug, price, image_urls, file_urls,
                                          page_url, product_id)
         result["review_issue"] = issue
         result["status"] = "pending_approval"

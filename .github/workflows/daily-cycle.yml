@@ -39,7 +39,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg pandoc
-          pip install -q weasyprint python-docx markdown
+          pip install -q weasyprint python-docx markdown curl_cffi
 
       - name: Run daily cycle
         env:
@@ -55,7 +55,6 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}

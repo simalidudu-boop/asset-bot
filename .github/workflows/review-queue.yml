@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install deps
-        run: pip install -q weasyprint python-docx markdown
+        run: pip install -q weasyprint python-docx markdown curl_cffi
       - name: Process command
         env:
           WHOP_API_KEY: ${{ secrets.WHOP_API_KEY }}

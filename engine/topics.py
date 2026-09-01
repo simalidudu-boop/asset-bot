@@ -143,13 +143,17 @@ def pick_daily(n_free: int = 1, n_paid: int = 2) -> list[dict]:
     return out
 
 
-def record_asset(slug: str, title: str, topic: str, kind: str):
+def record_asset(slug: str, title: str, topic: str, kind: str,
+                 extra: dict | None = None):
     """Append to the manifest that content.py reads."""
     mf = STATE / "manifest.json"
     manifest = json.loads(mf.read_text()) if mf.exists() else {"assets": [], "posts": []}
-    manifest["assets"].append({
+    record = {
         "slug": slug, "title": title, "topic": topic, "kind": kind,
         "page_url": "",  # filled by publish.py after creation
         "created": os.popen("date -u +%Y-%m-%dT%H:%M:%SZ").read().strip(),
-    })
+    }
+    if extra:
+        record.update(extra)
+    manifest["assets"].append(record)
     mf.write_text(json.dumps(manifest, indent=2))

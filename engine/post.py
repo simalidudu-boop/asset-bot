@@ -16,7 +16,8 @@ import whop_client as whop  # noqa: E402
 
 DRY = os.environ.get("DRY_RUN") == "1"
 COMPANY_ID = os.environ.get("WHOP_COMPANY_ID", "")
-OWN_FORUM_ID = os.environ.get("OWN_FORUM_ID", "")     # exp_xxx
+OWN_FORUM_ID = os.environ.get("OWN_FORUM_ID", "")           # members-only forum
+PUBLIC_FORUM_ID = os.environ.get("PUBLIC_FORUM_ID", "")     # explicit exp_ of public forum
 PUBLIC_EXPERIENCE = os.environ.get("PUBLIC_EXPERIENCE", "public")
 STAGGER = int(os.environ.get("POST_STAGGER_SEC", "600"))
 MAX_POSTS_PER_RUN = int(os.environ.get("MAX_POSTS_PER_RUN", "4"))
@@ -63,10 +64,13 @@ def post_piece(piece: dict, media_url: str | None = None) -> dict:
     if media_url and piece["fmt"] in ("image", "video"):
         body = f"{body}\n\n{media_url}"
 
-    targets = [
-        {"label": "public-space", "experience_id": PUBLIC_EXPERIENCE,
-         "company_id": COMPANY_ID},
-    ]
+    targets = []
+    pub_exp = PUBLIC_FORUM_ID or PUBLIC_EXPERIENCE
+    pub_target = {"label": "public-space", "experience_id": pub_exp}
+    if pub_exp == "public":
+        # the special 'public' experience id needs the company context
+        pub_target["company_id"] = COMPANY_ID
+    targets.append(pub_target)
     if OWN_FORUM_ID:
         vbody, vtitle = _variation(body, piece["title"])
         targets.append({"label": "own-forum", "experience_id": OWN_FORUM_ID})

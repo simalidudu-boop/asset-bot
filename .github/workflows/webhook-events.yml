@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install deps
-        run: pip install -q weasyprint python-docx markdown
+        run: pip install -q weasyprint python-docx markdown curl_cffi
       - name: React to event
         env:
           EVENT_TYPE: ${{ github.event.action }}
@@ -36,7 +36,6 @@ jobs:
           WHOP_COMPANY_ID: ${{ secrets.WHOP_COMPANY_ID }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
         run: python3 engine/react_webhook.py
 
       - name: Commit event log back

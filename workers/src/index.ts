@@ -79,11 +79,15 @@ export default {
         // Workers AI binding — platform auth, billed in free neurons
         const ai = (await env.AI.run("@cf/black-forest-labs/flux-1-schnell", {
           prompt,
-          num_steps: 4,
         })) as { image?: string };
         if (!ai.image) return json({ error: "no image in AI response" }, 502);
 
         const bytes = Uint8Array.from(atob(ai.image), (c) => c.charCodeAt(0));
+        // R2 not enabled yet? Return a data URI instead (spike/fallback mode).
+        if (!env.PROMO_BUCKET) {
+          return json({ ok: true, storage: "data-uri",
+                        data_url: `data:image/jpeg;base64,${ai.image}` });
+        }
         const keyName = `${name ?? Date.now()}-${crypto.randomUUID().slice(0, 8)}.jpg`;
         await env.PROMO_BUCKET.put(keyName, bytes, { httpMetadata: { contentType: "image/jpeg" } });
         return json({ ok: true, url: `/promo/${keyName}` });
@@ -93,6 +97,9 @@ export default {
     }
 
     if (url.pathname.startsWith("/upload/") && request.method === "PUT") {
+      if (!env.PROMO_BUCKET) {
+        return json({ error: "R2 storage not enabled on this account yet" }, 503);
+      }
       const auth = request.headers.get("X-Bot-Token");
       if (!env.BOT_TOKEN || auth !== env.BOT_TOKEN) {
         return json({ error: "unauthorized" }, 401);
@@ -107,6 +114,9 @@ export default {
     }
 
     if (url.pathname.startsWith("/promo/")) {
+      if (!env.PROMO_BUCKET) {
+        return json({ error: "R2 storage not enabled on this account yet" }, 503);
+      }
       const obj = await env.PROMO_BUCKET.get(url.pathname.slice("/promo/".length));
       if (!obj) return json({ error: "not found" }, 404);
       return new Response(obj.body, {
@@ -122,6 +132,6 @@ export default {
       return json({ keys: list.keys.map((k) => k.name) });
     }
 
-    return json({ ok: true, service: "asset-bot-edge" });
+    return json({ ok: true, service: "asset-bot-edge", v: 4 });
   },
 };

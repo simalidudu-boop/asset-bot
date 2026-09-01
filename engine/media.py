@@ -24,11 +24,12 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 def _cf_image(prompt: str, size: str = "1024x1024") -> bytes:
     account = os.environ["CF_ACCOUNT_ID"]
     url = f"https://api.cloudflare.com/client/v4/accounts/{account}/ai/run/@cf/black-forest-labs/flux-1-schnell"
-    payload = {"prompt": prompt, "num_steps": 4}
+    payload = {"prompt": prompt}  # NOTE: num_steps is rejected by CF (2026)
     req = urllib.request.Request(
         url, data=json.dumps(payload).encode(),
         headers={"Authorization": f"Bearer {os.environ['CF_API_TOKEN']}",
-                 "Content-Type": "application/json"}, method="POST")
+                 "Content-Type": "application/json",
+                 "User-Agent": "Mozilla/5.0 (asset-bot)"}, method="POST")
     with urllib.request.urlopen(req, timeout=120) as r:
         data = json.loads(r.read())
     if not data.get("success"):

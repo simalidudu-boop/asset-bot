@@ -13,6 +13,7 @@ works with any subset). FAIL items must be fixed before Phase 1 go-live.
 import json
 import os
 import sys
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -47,9 +48,14 @@ def get_json(url, headers=None, method="GET", payload=None, timeout=30):
         return json.loads(r.read())
 
 
-print("=== 1. Whop identity ===")
-check("whop /accounts/me", lambda: whop.me().get("id"), skip=not os.environ.get("WHOP_API_KEY"))
-check("whop /companies", lambda: [c.get("id") for c in whop.my_companies()],
+print("=== 1. Whop identity (scoped to your company) ===")
+def company_probe():
+    cid = os.environ.get("WHOP_COMPANY_ID", "")
+    c = whop._request("GET", f"/companies/{cid}")
+    exps = whop._request("GET", f"/experiences?company_id={cid}")
+    return (f"company={c.get('title')} route={c.get('route')} "
+            f"experiences={[(e['id'], e.get('name'), e.get('is_public')) for e in exps.get('data', [])]}")
+check("whop company + experiences", company_probe,
       skip=not os.environ.get("WHOP_API_KEY"))
 
 print("\n=== 2. Whop forum posting (DRY — no post is created) ===")
@@ -60,62 +66,18 @@ def forum_probe():
 check("forum config present", forum_probe,
       skip=not os.environ.get("WHOP_API_KEY"))
 
-print("\n=== 3. LLM providers (one tiny completion each) ===")
-def llm_probe(envkey, url, model, key_src, payload_fn):
-    k = os.environ.get(envkey)
-    if not k:
-        return None  # will be SKIPped by caller
-    payload = payload_fn(model)
-    headers = {"Authorization": f"Bearer {k}"}
-    d = get_json(url, headers, "POST", payload)
-    return str(d)[:120]
-
-providers = [
-    ("mistral", "MISTRAL_API_KEY",
-     "https://api.mistral.ai/v1/chat/completions",
-     lambda m: {"model": m, "messages": [{"role": "user", "content": "say ok"}]},
-     "mistral-small-latest"),
-    ("groq", "GROQ_API_KEY",
-     "https://api.groq.com/openai/v1/chat/completions",
-     lambda m: {"model": m, "messages": [{"role": "user", "content": "say ok"}]},
-     "llama-3.3-70b-versatile"),
-    ("cerebras", "CEREBRAS_API_KEY",
-     "https://api.cerebras.ai/v1/chat/completions",
-     lambda m: {"model": m, "messages": [{"role": "user", "content": "say ok"}]},
-     "llama-3.3-70b"),
-    ("gh-models", "GH_MODELS_TOKEN",
-     "https://models.inference.ai.azure.com/chat/completions",
-     lambda m: {"model": m, "messages": [{"role": "user", "content": "say ok"}]},
-     "gpt-4o-mini"),
-    ("xai", "XAI_API_KEY",
-     "https://api.x.ai/v1/chat/completions",
-     lambda m: {"model": m, "messages": [{"role": "user", "content": "say ok"}]},
-     "grok-4.1-fast"),
-]
-for name, envkey, url, payload_fn, model in providers:
-    if not os.environ.get(envkey):
+print("\n=== 3. LLM providers (through the real router, one tiny completion) ===")
+import textgen  # noqa: E402
+for name in ["mistral", "groq", "gemini", "cloudflare", "xai"]:
+    envkey = textgen.PROVIDERS[name]["env_key"]
+    if not os.environ.get(envkey) or (name == "cloudflare" and not os.environ.get("CF_ACCOUNT_ID")):
         check(f"llm {name}", None, skip=True)
         continue
-    check(f"llm {name}", lambda u=url, p=payload_fn, m=model, e=envkey:
-          llm_probe(e, u, m, None, p))
-
-# gemini native
-if os.environ.get("GEMINI_API_KEY"):
-    check("llm gemini", lambda: get_json(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={os.environ['GEMINI_API_KEY']}",
-        None, "POST",
-        {"contents": [{"parts": [{"text": "say ok"}]}]}))
-else:
-    check("llm gemini", None, skip=True)
-
-# cloudflare workers ai
-if os.environ.get("CF_API_TOKEN") and os.environ.get("CF_ACCOUNT_ID"):
-    check("llm cloudflare-workers-ai", lambda: get_json(
-        f"https://api.cloudflare.com/client/v4/accounts/{os.environ['CF_ACCOUNT_ID']}/ai/run/@cf/meta/llama-3.1-8b-instruct",
-        {"Authorization": f"Bearer {os.environ['CF_API_TOKEN']}"}, "POST",
-        {"messages": [{"role": "user", "content": "say ok"}]})["result"]["response"][:80])
-else:
-    check("llm cloudflare-workers-ai", None, skip=True)
+    def router_probe(n=name):
+        out = textgen.chat([{"role": "user", "content": "say ok"}],
+                           max_tokens=20, order=[n])
+        return out[0][:50]
+    check(f"llm {name}", router_probe)
 
 print("\n=== 4. Cohere embed/rerank ===")
 if os.environ.get("COHERE_API_KEY"):
@@ -133,26 +95,45 @@ if os.environ.get("CF_API_TOKEN") and os.environ.get("CF_ACCOUNT_ID"):
         d = get_json(
             f"https://api.cloudflare.com/client/v4/accounts/{os.environ['CF_ACCOUNT_ID']}/ai/run/@cf/black-forest-labs/flux-1-schnell",
             {"Authorization": f"Bearer {os.environ['CF_API_TOKEN']}"}, "POST",
-            {"prompt": "spike test: minimal cover art, one accent color", "num_steps": 4})
+            {"prompt": "spike test: minimal cover art, one accent color"})
         assert d.get("success"), d.get("errors")
         import base64
-        return f"{len(base64.b64decode(d['result']['image']))} bytes png"
+        return f"{len(base64.b64decode(d['result']['image']))} bytes jpeg"
     check("cf flux image", cf_img)
 else:
     check("cf flux image", None, skip=True)
 
 print("\n=== 6. Edge worker ===")
 if os.environ.get("EDGE_URL"):
-    check("edge / (health)", lambda: get_json(f"{os.environ['EDGE_URL']}/"))
+    def edge_health():
+        import urllib.request as _ur
+        req = _ur.Request(f"{os.environ['EDGE_URL']}/",
+                          headers={"User-Agent": "Mozilla/5.0 (asset-bot-spike)"})
+        with _ur.urlopen(req, timeout=20) as r:
+            return f"HTTP {r.status}"
+    check("edge / (health)", edge_health)
     if os.environ.get("BOT_TOKEN"):
         def edge_upload():
+            # R2 is not enabled on the account (card-gated) — the worker
+            # answers 503 on /upload. Hosting is GitHub Releases instead.
             req = urllib.request.Request(f"{os.environ['EDGE_URL']}/upload/spike/hello.txt",
                                          data=b"spike", method="PUT")
             req.add_header("X-Bot-Token", os.environ["BOT_TOKEN"])
+            req.add_header("User-Agent", "Mozilla/5.0 (asset-bot-spike)")
             with urllib.request.urlopen(req, timeout=30) as r:
                 d = json.loads(r.read())
-            return d["url"]
-        check("edge /upload (PUT)", edge_upload)
+                return d["url"]
+            # a 503 here is EXPECTED (R2 off) — see except below
+        try:
+            r = edge_upload()
+            check("edge /upload (PUT)", lambda: r)
+        except urllib.error.HTTPError as e:
+            if e.code == 503:
+                print(f"  PASS  edge /upload (PUT) -> 503 R2 disabled (expected — "
+                      f"hosting = GitHub Releases)")
+                RESULTS.append(("edge /upload (PUT)", "PASS"))
+            else:
+                raise
 else:
     check("edge / (health)", None, skip=True)
 

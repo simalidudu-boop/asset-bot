@@ -22,10 +22,17 @@ AI images + slideshow videos, and posts 6–8 content pieces/day to the
 ## The $0 generation layer
 
 Text goes through a cascade router (`engine/textgen.py`) across free tiers —
-**Mistral** (1B tok/mo), **Groq**, **Cerebras**, **GitHub Models**, **Gemini**,
+**Mistral** (1B tok/mo), **Groq**, **Cerebras**, **Gemini**,
 **Cloudflare Workers AI**, **xAI** (credits only). ~40k tokens/day needed vs.
-millions available. Images: Cloudflare Flux Schnell (10k neurons/day) →
-Pollinations fallback. Video: images + TTS + ffmpeg on the free runner.
+millions available. Images: Cloudflare Flux Schnell (10k neurons/day, via the
+Worker's AI binding or REST) → Pollinations fallback. Video: images + TTS +
+ffmpeg on the free runner.
+
+**Hosting (no card needed anywhere):** deliverables (PDF/DOCX/ZIP/HTML/MD),
+promo images and videos are uploaded to **GitHub Releases** (public repo =
+free, unlimited, correct content types, stable download URLs). Cloudflare R2
+remains an optional upgrade — it requires a payment method on the account,
+which we avoid entirely.
 
 ## Setup (one time)
 
@@ -35,12 +42,11 @@ Pollinations fallback. Video: images + TTS + ffmpeg on the free runner.
    git remote add origin git@github.com:YOU/asset-bot.git && git push -u origin main
    ```
 2. **Cloudflare:** `npx wrangler deploy` from `workers/` after:
-   - `wrangler kv namespace create BOT_STATE` → put the id in `wrangler.toml`
-   - `wrangler r2 bucket create asset-bot-promo`
+   - `wrangler kv namespace create BOT_STATE` → put the id in `wrangler.json`
    - `wrangler secret put GH_TOKEN` (PAT with `repo` scope)
    - `wrangler secret put BOT_TOKEN` (any random string — matches Actions secret)
-   - `wrangler secret put CLOUDFLARE_API_TOKEN`
-   - edit `GH_OWNER`/`GH_REPO` vars in `wrangler.toml`
+   - R2 is optional (needs a payment method) — hosting is GitHub Releases
+   - edit `GH_OWNER`/`GH_REPO` vars in `wrangler.json`
 3. **Whop dashboard:** create an **Account API key** with permissions
    `forum:post:create`, `access_pass:create`, product/plan create. Subscribe
    webhooks (`payment.succeeded`, `membership.activated`) to
@@ -80,8 +86,9 @@ MOCK=1 DRY_RUN=1 python3 engine/run_content.py
 - **Free asset** → Whop product (visible) + $0 plan, live immediately.
 - **Paid asset** → product created *hidden*, review Issue opened with previews
   + real file links. Comment `/approve` → plan + visible. `/reject` → closed.
-- **Deliverables** → R2 public CDN via the Worker; Whop Files-app upload path
-  is confirmed in the spike (fallback: R2 links in product page + welcome msg).
+- **Deliverables + media** → hosted on **GitHub Releases** (free public CDN,
+  no card) by `engine/hosting.py`; the Whop Files-app upload path is
+  confirmed in the spike (fallback: release URLs in product page + welcome msg).
 - **Every content post** contains the free asset's Whop page link + one CTA
   (Pro upsell or custom work $150+).
 

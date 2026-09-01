@@ -14,10 +14,10 @@ LLM keys can be added later — the $0 router skips missing providers.
 | `OWN_FORUM_ID` | ✅ go-live | `exp_...` of your members-only forum experience |
 | `PUBLIC_EXPERIENCE` | optional (default `public`) | leave as `public` to post to your company's public forum |
 | `PRODUCT_PAGE_BASE` | ✅ go-live | `https://whop.com/YOUR-COMPANY-ROUTE` |
-| `CF_API_TOKEN` | ✅ images/TTS | dash.cloudflare.com → My Profile → API Tokens → Workers AI:Edit + Workers KV/R2:Edit |
-| `CF_ACCOUNT_ID` | ✅ images/TTS | Cloudflare dashboard right sidebar |
-| `EDGE_URL` | ✅ go-live | `https://asset-bot-edge.YOUR-SUBDOMAIN.workers.dev` |
-| `BOT_TOKEN` | ✅ go-live | any random string — must match Worker secret |
+| `CF_API_TOKEN` | ✅ images | dash.cloudflare.com → My Profile → API Tokens → Workers AI:Edit + KV:Edit (new `cfat_` account tokens work) |
+| `CF_ACCOUNT_ID` | ✅ images | Cloudflare dashboard right sidebar |
+| `EDGE_URL` | optional | worker URL — only needed for the R2 /upload path (R2 requires a payment method; hosting is GitHub Releases by default) |
+| `BOT_TOKEN` | optional | only needed for the R2 /upload path |
 | `MISTRAL_API_KEY` | recommended | console.mistral.ai (Experiment tier = free, ~1B tokens/month) |
 | `GROQ_API_KEY` | recommended | console.groq.com (free tier) |
 | `CEREBRAS_API_KEY` | optional | cloud.cerebras.ai (free tier) |

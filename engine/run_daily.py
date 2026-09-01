@@ -20,6 +20,7 @@ import generate_pack  # noqa: E402
 import packaging  # noqa: E402
 import publish  # noqa: E402
 import media  # noqa: E402
+import hosting  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "out"
@@ -83,14 +84,31 @@ def one_asset(item: dict, idx: int) -> dict | None:
                        f"📦 {len(pack['prompts'])} copy-paste prompts, "
                        f"{len(pack['skills'])} step-by-step skills with code.")
 
-        res = publish.publish_asset(
-            pack, slug,
-            deliverables=[Path(v) for k, v in artifacts.items() if k in
-                          ("pdf", "docx", "zip", "html")],
-            images=images, description=description)
+        # hosting: GitHub Releases = free public CDN (no R2/card needed)
+        deliverable_paths = [Path(v) for k, v in artifacts.items()
+                             if k in ("pdf", "docx", "zip", "html")]
+        if not DRY:
+            file_urls = hosting.upload_files(slug, deliverable_paths)
+            image_urls = hosting.upload_images(slug, [Path(i) for i in images])
+        else:
+            file_urls = [{"name": p.name, "url": f"(dry)/{slug}/{p.name}"}
+                         for p in deliverable_paths]
+            image_urls = images
+
+        # upload video too (used by content engine later)
+        video_url = None
+        if video and not DRY:
+            try:
+                video_url = hosting.upload_video(slug, Path(video))
+                print(f"[daily] video hosted: {video_url}")
+            except Exception as e:
+                print(f"[daily] video upload failed: {e}")
+
+        res = publish.publish_asset(pack, slug, file_urls, image_urls, description)
 
         # record for content engine
-        topics.record_asset(slug, pack["title"], topic, pack.get("category"))
+        topics.record_asset(slug, pack["title"], topic, pack.get("category"),
+                            extra={"video_url": video_url})
         if res.get("page_url"):
             mf = ROOT / "state" / "manifest.json"
             man = json.loads(mf.read_text())
