@@ -32,17 +32,5 @@ jobs:
           if echo "${{ github.event.comment.body }}" | grep -q "/approve"; then
             python3 engine/approve_from_issue.py
           else
-            python3 - <<'EOF'
-            import json, os, urllib.request
-            # /reject -> comment + close, product stays hidden
-            event = json.loads(open(os.environ["GITHUB_EVENT_PATH"]).read())
-            n = event["issue"]["number"]
-            req = urllib.request.Request(
-                f'https://api.github.com/repos/{os.environ["GITHUB_REPOSITORY"]}/issues/{n}',
-                data=json.dumps({"state": "closed"}).encode(), method="PATCH")
-            req.add_header("Authorization", f'Bearer {os.environ["GITHUB_TOKEN"]}')
-            req.add_header("Accept", "application/vnd.github+json")
-            urllib.request.urlopen(req)
-            print("issue closed (product stays hidden)")
-            EOF
+            python3 engine/reject_from_issue.py
           fi

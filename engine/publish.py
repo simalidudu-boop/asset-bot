@@ -70,6 +70,13 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
     image_urls: public promo image URLs (gallery)."""
     price = 0.0 if pack.get("free") else price_for(pack)
 
+    # free products: buyers must get the files — append download links to
+    # the description (release URLs are stable public CDN links)
+    if price == 0.0 and file_urls:
+        links_txt = "\n".join(f"- [{f['name']}]({f['url']})" for f in file_urls)
+        description = (description + "\n\n## Your downloads\n" + links_txt +
+                       "\n\n*(Instant delivery — click any file to download.)*")
+
     payload = {
         "company_id": COMPANY_ID,
         "title": pack["title"],
