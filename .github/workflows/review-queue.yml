@@ -14,6 +14,9 @@ env:
 jobs:
   handle:
     runs-on: ubuntu-latest
+    concurrency:
+      group: review-queue-${{ github.event.issue.number }}
+      cancel-in-progress: false
     if: contains(github.event.comment.body, '/approve') || contains(github.event.comment.body, '/reject')
     steps:
       - uses: actions/checkout@v4

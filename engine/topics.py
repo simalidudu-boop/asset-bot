@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -151,7 +152,9 @@ def record_asset(slug: str, title: str, topic: str, kind: str,
     record = {
         "slug": slug, "title": title, "topic": topic, "kind": kind,
         "page_url": "",  # filled by publish.py after creation
-        "created": os.popen("date -u +%Y-%m-%dT%H:%M:%SZ").read().strip(),
+        "free": True,
+        "status": "staged",
+        "created": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     if extra:
         record.update(extra)

@@ -12,6 +12,7 @@ import json
 import os
 import sys
 import traceback
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -108,13 +109,17 @@ def one_asset(item: dict, idx: int) -> dict | None:
 
         # record for content engine
         topics.record_asset(slug, pack["title"], topic, pack.get("category"),
-                            extra={"video_url": video_url})
+                            extra={"video_url": video_url, "free": is_free,
+                                   "status": res.get("status", "live" if is_free else "pending_approval"),
+                                   "price": res.get("price", 0.0)})
         if res.get("page_url"):
             mf = ROOT / "state" / "manifest.json"
             man = json.loads(mf.read_text())
             for a in man["assets"]:
                 if a["slug"] == slug:
                     a["page_url"] = res["page_url"]
+                    if "status" in res:
+                        a["status"] = res["status"]
             mf.write_text(json.dumps(man, indent=2))
         return res
     except Exception as e:
@@ -133,7 +138,7 @@ def main():
             results.append(r)
     summary = ROOT / "out" / "daily_summary.json"
     summary.parent.mkdir(exist_ok=True)
-    summary.write_text(json.dumps({"date": os.popen("date -u +%Y-%m-%d").read().strip(),
+    summary.write_text(json.dumps({"date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
                                    "results": results}, indent=2, default=str))
     print(f"\n[daily] done. {len(results)}/{len(picks)} assets. summary: {summary}")
 

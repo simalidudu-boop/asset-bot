@@ -18,11 +18,11 @@ import review  # noqa: E402
 
 
 def extract_payload(body: str) -> dict | None:
-    m = re.search(r"```json\s*(\{.*?\})\s*```", body, re.S)
+    m = re.search(r"```json\s*([\s\S]*?)\s*```", body)
     if not m:
         return None
     try:
-        return json.loads(m.group(1))
+        return json.loads(m.group(1).strip())
     except json.JSONDecodeError:
         return None
 
@@ -45,8 +45,15 @@ def main():
         review.comment(number, "❌ Could not read the payload block from the "
                                "issue body. Nothing was published.")
         return
-    # dedup: if a previous /approve already published this issue, don't
-    # create a second plan / duplicate publish
+    # dedup: if issue is already closed or already published, skip
+    try:
+        issue_data = review._gh("GET", f"/issues/{number}")
+        if issue_data.get("state") == "closed":
+            print(f"issue #{number} is already closed — skipping duplicate")
+            return
+    except Exception as e:
+        print(f"could not fetch issue state ({e}) — checking comments")
+
     comments = review._gh("GET", f"/issues/{number}/comments")
     if any("✅ Published!" in (c.get("body") or "") for c in comments):
         print(f"issue #{number} already published — skipping duplicate")

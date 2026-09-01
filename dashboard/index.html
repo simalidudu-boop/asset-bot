@@ -145,15 +145,16 @@ async function dispatch(wf) {
   if (r.ok) { toast(`dispatched ${wf}${mock ? " (mock)" : ""}`); setTimeout(refreshAll, 4000); }
   else toast("dispatch failed: " + (r.error || ""));
 }
-async function review(issue, command) {
-  if (!await ensureToken()) return;
+async function review(issue, command, btn) {
+  if (btn) btn.disabled = true;
+  if (!await ensureToken()) { if (btn) btn.disabled = false; return; }
   const r = await wfetch("/api/comment", {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Bot-Token": token() },
     body: JSON.stringify({ issue, command }),
   });
   if (r.ok) { toast(`sent ${command} on #${issue}`); setTimeout(refreshAll, 4000); }
-  else toast("failed: " + (r.error || ""));
+  else { toast("failed: " + (r.error || "")); if (btn) btn.disabled = false; }
 }
 
 // ---------- GitHub reads (proxied through the Worker — no browser rate limits) ----------
@@ -206,8 +207,8 @@ async function refreshIssues() {
       return `<div class="item"><b>${esc(title)}</b>
         <div class="muted">#${i.number} · ${new Date(i.created_at).toLocaleDateString()}</div>
         <div class="row" style="margin-top:6px">
-          <button onclick="review(${i.number},'/approve')">✅ Approve</button>
-          <button onclick="review(${i.number},'/reject denied')">✖ Reject</button>
+          <button onclick="review(${i.number},'/approve',this)">✅ Approve</button>
+          <button onclick="review(${i.number},'/reject denied',this)">✖ Reject</button>
           <a href="${i.html_url}" target="_blank" class="muted">open issue ↗</a>
         </div></div>`;
     }).join("");
