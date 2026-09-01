@@ -1,22 +1,96 @@
 {
   "assets": [
     {
-      "slug": "the-ai-video-script-engine",
-      "title": "The AI Video Script Engine",
+      "slug": "zero-click-content-machine",
+      "title": "Zero-Click Content Machine",
+      "topic": "AI content automation for creators",
+      "kind": "prompt-pack",
+      "page_url": "",
+      "created": "2026-09-01T11:02:51Z"
+    },
+    {
+      "slug": "zero-click-content-machine",
+      "title": "Zero-Click Content Machine",
+      "topic": "Prompt engineering for small business owners",
+      "kind": "prompt-pack",
+      "page_url": "",
+      "created": "2026-09-01T11:02:51Z"
+    },
+    {
+      "slug": "zero-click-content-machine",
+      "title": "Zero-Click Content Machine",
+      "topic": "Automating social media with AI agents",
+      "kind": "prompt-pack",
+      "page_url": "",
+      "created": "2026-09-01T11:37:25Z"
+    },
+    {
+      "slug": "zero-click-content-machine",
+      "title": "Zero-Click Content Machine",
+      "topic": "ChatGPT prompt systems for freelancers",
+      "kind": "prompt-pack",
+      "page_url": "",
+      "created": "2026-09-01T11:37:33Z"
+    },
+    {
+      "slug": "zero-click-content-machine",
+      "title": "Zero-Click Content Machine",
+      "topic": "AI image prompts for product marketing",
+      "kind": "prompt-pack",
+      "page_url": "",
+      "created": "2026-09-01T11:37:41Z"
+    },
+    {
+      "slug": "the-content-research-engine",
+      "title": "The Content Research Engine",
+      "topic": "AI research assistants for content teams",
+      "kind": "prompt-pack",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/the-content-research-engine",
+      "created": "2026-09-01T13:24:16Z",
+      "video_url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/the-content-research-engine.the-content-research-engine.mp4"
+    },
+    {
+      "slug": "the-video-script-engine",
+      "title": "The Video Script Engine",
       "topic": "AI video scripting",
       "kind": "prompt-pack",
-      "page_url": "https://whop.com/the-algorithmic-daemon-concern/the-ai-video-script-engine",
-      "created": "2026-09-01T12:45:34Z",
-      "video_url": null
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/the-video-script-engine",
+      "created": "2026-09-01T13:27:39Z",
+      "video_url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/the-video-script-engine.the-video-script-engine.mp4"
+    },
+    {
+      "slug": "the-one-to-many-content-engine",
+      "title": "The One-to-Many Content Engine",
+      "topic": "Repurposing content with AI",
+      "kind": "prompt-pack",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/the-one-to-many-content-engine",
+      "created": "2026-09-01T13:28:19Z",
+      "video_url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/the-one-to-many-content-engine.the-one-to-many-content-engine.mp4"
+    },
+    {
+      "slug": "the-digital-product-automation-engine",
+      "title": "The Digital Product Automation Engine",
+      "topic": "AI tools for digital product sellers",
+      "kind": "prompt-pack",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/the-digital-product-automation-engine",
+      "created": "2026-09-01T13:29:09Z",
+      "video_url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/the-digital-product-automation-engine.the-digital-product-automation-engine.mp4"
     }
   ],
   "posts": [
     {
-      "asset": "the-ai-video-script-engine",
+      "asset": "zero-click-content-machine",
       "fmt": "text",
       "lang": "en",
-      "title": "Write a 60-second video script in 4 minutes",
-      "at": "2026-09-01T12:46:12Z"
+      "title": "Zero-Click Content Machine",
+      "at": "2026-09-01T11:03:07Z"
+    },
+    {
+      "asset": "zero-click-content-machine",
+      "fmt": "text",
+      "lang": "fr",
+      "title": "Zero-Click Content Machine",
+      "at": "2026-09-01T11:03:13Z"
     }
   ]
 }
