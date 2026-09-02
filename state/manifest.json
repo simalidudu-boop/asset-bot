@@ -76,6 +76,51 @@
       "status": "live",
       "cover_status": "set",
       "gallery_images": []
+    },
+    {
+      "slug": "zero-click-content-machine-6",
+      "title": "Zero-Click Content Machine",
+      "topic": "Building AI prompt libraries",
+      "kind": "prompt-pack",
+      "free": true,
+      "price": 0.0,
+      "product_id": null,
+      "status": "dry",
+      "page_url": "",
+      "created": "2026-09-02T12:23:44Z",
+      "video_url": null,
+      "cover_status": null,
+      "gallery_images": []
+    },
+    {
+      "slug": "zero-click-content-machine-7",
+      "title": "Zero-Click Content Machine",
+      "topic": "No-code AI automations",
+      "kind": "prompt-pack",
+      "free": false,
+      "price": 5,
+      "product_id": null,
+      "status": "dry",
+      "page_url": "",
+      "created": "2026-09-02T12:23:51Z",
+      "video_url": null,
+      "cover_status": null,
+      "gallery_images": []
+    },
+    {
+      "slug": "zero-click-content-machine-8",
+      "title": "Zero-Click Content Machine",
+      "topic": "AI for copywriting landing pages",
+      "kind": "prompt-pack",
+      "free": false,
+      "price": 5,
+      "product_id": null,
+      "status": "dry",
+      "page_url": "",
+      "created": "2026-09-02T12:23:58Z",
+      "video_url": null,
+      "cover_status": null,
+      "gallery_images": []
     }
   ],
   "posts": [
