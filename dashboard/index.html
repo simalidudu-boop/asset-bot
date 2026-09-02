@@ -128,7 +128,7 @@
       <div class="row" style="margin-bottom:10px">
         <button class="go" onclick="dispatch('daily-cycle')">▶ Run daily cycle</button>
         <button class="go" onclick="dispatch('content-posting')">▶ Run content post</button>
-        <label class="muted"><input type="checkbox" id="mock" checked> mock mode (safe, posts nothing)</label>
+        <label class="muted"><input type="checkbox" id="mock" onchange="saveMock()"> mock mode (safe, posts nothing)</label>
       </div>
       <div class="row">
         <button class="danger" id="btn-kill" onclick="toggle('kill_switch')">☠ Kill switch</button>
@@ -282,6 +282,19 @@ function token(){return localStorage.getItem("bot_token")||"";}
 function needToken(){if(token())return true;const v=prompt("Control token:");if(v){localStorage.setItem("bot_token",v.trim());return true;}toast("token required");return false;}
 function resetToken(){localStorage.removeItem("bot_token");toast("token cleared");}
 function setDot(id,state){const d=document.getElementById(id);d.className="dot "+state;}
+
+// Mock-mode checkbox: remember the operator's choice across reloads. It used
+// to be hardcoded `checked` in the HTML, so every refresh silently re-armed
+// mock mode and a "real" run you set up moments earlier would post nothing.
+// Default to ON only on the very first visit (safe default, then respected).
+function saveMock(){
+  localStorage.setItem("mock_mode", document.getElementById("mock").checked ? "1" : "0");
+}
+function restoreMock(){
+  const el=document.getElementById("mock");
+  const v=localStorage.getItem("mock_mode");
+  el.checked = (v===null) ? true : v==="1";
+}
 
 async function wfetch(path,opts={}){const r=await fetch(WORKER+path,opts);return r.json();}
 
@@ -557,6 +570,7 @@ async function purgeOrphans(){
   else toast("purge failed: "+(r.error||""));
 }
 
+restoreMock();
 refreshAll();
 setInterval(refreshAll,60000);
 </script>
