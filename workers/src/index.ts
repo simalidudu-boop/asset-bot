@@ -323,6 +323,9 @@ export default {
         const removedSlugs = (manifest.assets || [])
           .filter((a: any) => a.status === "orphaned").map((a: any) => a.slug);
         if (!removedSlugs.length) return json({ ok: true, removed: 0, message: "no orphans" });
+        const freedTopics = (manifest.assets || [])
+          .filter((a: any) => a.status === "orphaned")
+          .map((a: any) => a.topic).filter(Boolean);
         manifest.assets = kept;
         // keep posts, but drop ones pointing at removed assets
         manifest.posts = (manifest.posts || []).filter((x: any) => !removedSlugs.includes(x.asset));
@@ -331,8 +334,29 @@ export default {
           message: `chore: purge ${removedSlugs.length} orphaned asset(s) via Command Center`,
           content: body, sha: cur.sha,
         });
+
+        // release the topics back to the pool — they were marked "used" but
+        // produced nothing, so without this they'd never be retried.
+        let released = 0;
+        try {
+          const tp = `/repos/${env.GH_OWNER}/${env.GH_REPO}/contents/state/topics_index.json`;
+          const tcur = await gh(env, "GET", tp);
+          const tidx = JSON.parse(atob(String(tcur.content).replace(/\s/g, "")));
+          const beforeN = (tidx.used || []).length;
+          tidx.used = (tidx.used || []).filter((t: string) => !freedTopics.includes(t));
+          for (const t of freedTopics) delete (tidx.vectors || {})[t];
+          released = beforeN - tidx.used.length;
+          if (released > 0) {
+            await gh(env, "PUT", tp, {
+              message: `chore: release ${released} topic(s) from purged orphans`,
+              content: btoa(unescape(encodeURIComponent(JSON.stringify(tidx, null, 2)))),
+              sha: tcur.sha,
+            });
+          }
+        } catch (e) { /* topic release is best-effort */ }
+
         return json({ ok: true, removed: removedSlugs.length, slugs: removedSlugs,
-                      assetsBefore: before, assetsAfter: kept.length });
+                      topicsReleased: released, assetsBefore: before, assetsAfter: kept.length });
       } catch (e) {
         return json({ ok: false, error: String(e) }, 500);
       }

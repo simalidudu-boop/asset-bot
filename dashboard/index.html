@@ -250,7 +250,7 @@
         <div class="muted" style="margin:4px 0 8px">
           Manifest entries whose Whop product was never created (a generation run died
           before publish). They are already excluded from promotion, so they cost you
-          nothing — purging just clears the alert and tidies the ledger.
+          nothing — purging clears the alert, tidies the ledger, and <b>releases their topics</b> so the bot can retry them.
         </div>
         <div class="row">
           <span class="tag orphaned" id="orph-count">0 orphaned</span>
@@ -553,7 +553,7 @@ async function purgeOrphans(){
   if(!needToken())return;
   if(!confirm("Remove orphaned entries from the manifest? This commits to the repo. Safe: they are already excluded from promotion."))return;
   const r=await wfetch("/api/purge-orphans",{method:"POST",headers:{"X-Bot-Token":token()}});
-  if(r.ok){toast(r.removed?`purged ${r.removed} orphan(s)`:"no orphans to purge");refreshAll();loadConfig();}
+  if(r.ok){toast(r.removed?`purged ${r.removed} orphan(s), released ${r.topicsReleased||0} topic(s)`:"no orphans to purge");refreshAll();loadConfig();}
   else toast("purge failed: "+(r.error||""));
 }
 
