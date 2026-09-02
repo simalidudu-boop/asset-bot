@@ -71,19 +71,37 @@ export default {
 
     // ---- dashboard (root) ----
     if (p === "/" && request.method === "GET") {
+      // Cache keyed on the bare URL, ignoring ?v= busters, with a real TTL.
+      // Previously the response was cache.put() with no Cache-Control, so the
+      // edge held the old dashboard forever and "/" served a stale build while
+      // "/?v=N" served the new one. Always give the entry an explicit max-age.
       const cache = caches.default;
-      const cached = await cache.match(request);
-      if (cached) return cached;
+      const cacheKey = new Request(new URL(url.pathname, url.origin).toString(),
+                                   { method: "GET" });
+      const bust = url.searchParams.has("v") || url.searchParams.has("nocache");
+      if (!bust) {
+        const cached = await cache.match(cacheKey);
+        if (cached) return cached;
+      }
       try {
-        const raw = `https://raw.githubusercontent.com/${env.GH_OWNER}/${env.GH_REPO}/main/dashboard/index.html`;
-        const r = await fetch(raw, { cf: { cacheTtl: 300 } });
+        // pin to the current commit so a push invalidates immediately
+        let ref = "main";
+        try {
+          const head = await gh(env, "GET", `/repos/${env.GH_OWNER}/${env.GH_REPO}/commits/main`);
+          if (head?.sha) ref = head.sha;
+        } catch { /* fall back to main */ }
+        const raw = `https://raw.githubusercontent.com/${env.GH_OWNER}/${env.GH_REPO}/${ref}/dashboard/index.html`;
+        const r = await fetch(raw, { cf: { cacheTtl: 30 } });
         if (!r.ok) throw new Error(`raw ${r.status}`);
         const html = await r.text();
         const resp = new Response(html, {
-          headers: { "content-type": "text/html; charset=utf-8" },
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "public, max-age=60",
+            "x-dashboard-ref": ref.slice(0, 7),
+          },
         });
-        // only cache success to avoid caching 404s
-        await cache.put(request, resp.clone());
+        await cache.put(cacheKey, resp.clone());
         return resp;
       } catch (e) {
         return json({ ok: true, service: "asset-bot-edge",
