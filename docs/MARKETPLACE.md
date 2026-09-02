@@ -104,5 +104,37 @@ So the factory does the half it can:
 - `marketplace.faq_report()` prints the generated Q&A in paste-ready form on
   every publish, and reports whether the live product already has any.
 
-**Manual step:** Product editor -> FAQs -> Add question. Copy for the two
-existing products is in `docs/FAQ_TO_PASTE.md`.
+### FAQs are an *experience*, not a product field
+
+There is genuinely no FAQ field: `faq` appears **0 times** in the entire 3 MB
+`api-v1-native.json` OpenAPI spec, and the GraphQL schema has no faq input
+anywhere. FAQs are delivered as an **experience** — an app attached to a
+product. Whop's first-party FAQs app is `app_PsBytos2S7vFcG`.
+
+`marketplace.ensure_faq_experience()` creates that experience once and attaches
+it to each product. **Attach is verified working** (200, and the experience
+shows up under `publicAccessPass.experiences`). Creation needs one permission:
+
+| Key | Missing permission |
+|---|---|
+| App key (`app_aJFKUT7MnR5730`) | `experience:create` |
+| Company key | `app_authorization:create` |
+
+Even with the app attached, the FAQs app has **no public write API** — the
+questions are typed in the app UI. So the factory generates the copy, ships it
+in the deliverable, prints it paste-ready, and creates the sidebar slot.
+
+**Manual step:** paste the copy in `docs/FAQ_TO_PASTE.md`.
+
+### labels / banner_image — do NOT trust the beta spec here
+
+The beta spec lists `labels` and `banner_image` on `PATCH /products/{id}`.
+Neither works with our keys:
+
+- `labels` -> **400** `Invalid value for parameter 'labels'` on both the company
+  and App key, with and without `Whop-Version` / `whop-api-version` /
+  `Accept-Version` headers. (Also note: `labels` are *collections*, not
+  marketplace categories — it was never the Discover-category lever.)
+- `banner_image` -> **200 OK, but silently does nothing.** Read back via REST
+  and GraphQL: `bannerImage` is still `null`. A false success — always verify
+  a write by reading it back.

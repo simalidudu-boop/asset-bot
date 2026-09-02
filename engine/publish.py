@@ -123,8 +123,14 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
     # product appears on Discover, not just via direct link. Free products
     # are visible immediately; paid ones are hidden until /approve, so only
     # submit the ones that are actually visible.
-    # FAQs are generated but not writable via the API — surface them.
+    # FAQs: no product field exists, so attach the FAQ app as an experience
+    # (sidebar item) and print the generated copy for the one manual paste.
     marketplace.faq_report(product_id, pack.get("faq"))
+    if os.environ.get("ENABLE_FAQ_APP", "1") not in ("0", "false", "False"):
+        try:
+            marketplace.ensure_faq_experience(product_id, COMPANY_ID)
+        except Exception as e:  # noqa: BLE001
+            print(f"[faq] experience step skipped: {e}")
 
     if price == 0.0:
         listing = marketplace.publish(product_id, COMPANY_ID)

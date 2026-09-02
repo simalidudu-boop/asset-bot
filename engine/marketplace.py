@@ -133,3 +133,59 @@ def publish(product_id: str, company_id: str | None = None,
         status.update(status="error", error=str(e)[:300])
         print(f"[marketplace] publish failed for {product_id}: {e}")
     return status
+
+
+# --- FAQ via experience (app) -------------------------------------------
+# There is no FAQ field on the Product API (verified: 0 occurrences of "faq"
+# in the entire 3MB OpenAPI spec, no faq input in the GraphQL schema). FAQs
+# are delivered as an *experience* — an app attached to the product.
+#
+# Whop's first-party FAQs app:
+FAQ_APP_ID = "app_PsBytos2S7vFcG"
+
+
+def ensure_faq_experience(product_id: str, company_id: str,
+                          app_id: str = FAQ_APP_ID,
+                          name: str = "FAQ") -> dict:
+    """Create the FAQ experience once, then attach it to `product_id`.
+
+    Requires `experience:create` on the App key (and `app_authorization:create`
+    for a company key). Never raises. NOTE: this creates the sidebar item only —
+    the FAQs app has no public write API, so the questions themselves are still
+    entered in the app UI. The generated copy is printed by faq_report().
+    """
+    out = {"product_id": product_id, "app_id": app_id}
+    try:
+        existing = (whop._request(
+            "GET", f"/experiences?company_id={company_id}") or {}).get("data") or []
+    except Exception as e:  # noqa: BLE001
+        out.update(status="error", error=f"list failed: {e}")
+        return out
+
+    def _app_of(e):
+        a = e.get("app")
+        return a.get("id") if isinstance(a, dict) else e.get("app_id")
+
+    exp = next((e for e in existing if _app_of(e) == app_id), None)
+
+    if exp is None:
+        try:
+            exp = whop._request("POST", "/experiences", {
+                "app_id": app_id, "company_id": company_id, "name": name})
+            out["created"] = True
+        except Exception as e:  # noqa: BLE001
+            out.update(status="needs_permission", error=str(e)[:200])
+            print(f"[faq] cannot create FAQ experience: {e}")
+            return out
+
+    exp_id = exp.get("id")
+    out["experience_id"] = exp_id
+    try:
+        whop._request("POST", f"/experiences/{exp_id}/attach",
+                      {"product_id": product_id})
+        out["status"] = "attached"
+        print(f"[faq] FAQ experience {exp_id} attached to {product_id}")
+    except Exception as e:  # noqa: BLE001
+        out.update(status="attach_failed", error=str(e)[:200])
+        print(f"[faq] attach failed for {product_id}: {e}")
+    return out
