@@ -1,67 +1,64 @@
-# Whop product cover images — VERIFIED WORKING SEQUENCE
+# Whop product cover images — SOLVED
 
-Status as of 2026-09-02: the App API key `app_aJFKUT7MnR5730` **works**.
-Image upload succeeds. One permission is still missing for the final attach.
+Status: **working end to end** as of 2026-09-02. Both live products have covers.
+Implemented in `engine/whop_media.py`, called automatically from `engine/publish.py`.
 
-## The sequence (all verified live)
+## Required setup (done)
 
-1. **`mediaDirectUpload`** GraphQL mutation at `https://api.whop.com/public-graphql`
-   with `contentType`, `byteSizeV2`, `checksum` (base64 MD5), `filename`, and
-   `record: "access_pass"`. A Whop *product* is an **access_pass** internally —
-   passing `"product"` is rejected by the enum.
-   Returns `{ id, uploadUrl, headers }`.
-2. **`PUT`** the raw bytes to `uploadUrl` with exactly the returned headers. -> **200**
-3. **`updateAccessPass`** with `galleryImages: [{ id: <blob id> }]`.
-   `AttachmentInput` accepts **only** `id` (not `directUploadId`, not `url`).
+| Item | Value |
+|---|---|
+| App | `asset-bot` / `app_aJFKUT7MnR5730` |
+| App API key | env `WHOP_APP_API_KEY` |
+| App id header | `x-whop-app-id` (env `WHOP_APP_ID`) |
+| Install | app installed on the company, granting *Update products* |
 
-Auth: `Authorization: Bearer <app key>` + `x-whop-app-id: app_aJFKUT7MnR5730`.
-The plain company key gets 401 on step 1 — the App key is required.
+The plain **company** key cannot do this — it gets 401 on the upload routes.
+The **App** key alone is also not enough: before the app was installed on the
+company, `updateAccessPass` returned
+`403 Required permission: access_pass:update`. Installing the app fixed it.
 
-Implemented in `engine/whop_media.py`, called from `engine/publish.py`.
+## The verified 5-step sequence
 
-## THE ONE REMAINING STEP
+All against `https://api.whop.com/public-graphql`:
 
-Steps 1 and 2 succeed. Step 3 returns:
+1. **`mediaDirectUpload`** with `contentType`, `byteSizeV2`, `checksum`
+   (base64 MD5), `filename`, `record: "access_pass"`.
+   A Whop *product* is an **access_pass** internally — `"product"` is rejected.
+   Returns `{ id (signed blob id), uploadUrl, headers }`.
+2. **`PUT`** the bytes to `uploadUrl` with exactly the returned headers -> 200.
+3. **`mediaAnalyzeAttachment`** with `{ directUploadId, mediaType: "image" }`.
+   The enum is **lowercase** (`image|video|audio|other`). Returns a Boolean.
+4. **`attachment(id: <signed blob id>)`** query -> returns the persistent
+   **`file_...` id**. This is the key step: `AttachmentInput.id` means "the ID
+   of an existing file object", and the signed blob id is NOT accepted —
+   passing it gives `404 This Attachment was not found`.
+   Registration is async, so retry this lookup for a few seconds
+   (`Invalid ID` means it has not landed yet).
+5. **`updateAccessPass`** with `galleryImages: [{ id: "file_..." }]`.
 
-```
-403 forbidden — Required permission: access_pass:update
-```
+## Gotchas that cost time
 
-Grant that scope to the app:
+- `record: "product"` -> enum error. Use `access_pass`.
+- `mediaType: "IMAGE"` -> enum error. Use `image`.
+- `galleryImages: [{directUploadId}]` -> not a field on AttachmentInput.
+- `galleryImages: [{url}]` / `image_url` / `logo` -> `400 parameter_invalid`.
+  External URLs are never accepted; bytes must be mirrored into Whop.
+- Passing the signed blob id (or its decoded numeric id) to galleryImages ->
+  `404 This Attachment was not found`. Only `file_...` works.
 
-1. <https://whop.com/dashboard> -> your company -> **Developer** -> app `asset-bot`
-   (`app_aJFKUT7MnR5730`).
-2. Open **Permissions** (or *Scopes* / *API access*).
-3. Enable **`access_pass:update`** — it may be listed as *Manage products* or
-   *Update access passes*. Also keep whatever grants attachment upload (already working).
-4. Save. No key regeneration needed — the same key picks up the new scope.
+## GitHub secrets
 
-Then re-run the daily cycle, or backfill the two existing products with:
+| Secret | Value |
+|---|---|
+| `WHOP_APP_API_KEY` | the App API key |
+| `WHOP_APP_ID` | `app_aJFKUT7MnR5730` |
+
+`daily-cycle.yml` already exports both. New products get covers automatically.
+
+## Backfill an existing product
 
 ```bash
 cd engine && WHOP_APP_API_KEY=... WHOP_APP_ID=app_aJFKUT7MnR5730 python3 -c "
 import whop_media
-for pid, img in [('prod_3rUWWBYz3FsuL', 'IMAGE_URL_1'),
-                 ('prod_F080AA8beZEie', 'IMAGE_URL_2')]:
-    print(pid, whop_media.set_product_gallery(pid, [img]))"
+print(whop_media.set_product_gallery('prod_XXXX', ['https://.../image.jpg']))"
 ```
-
-## GitHub secrets to add
-
-| Secret | Value |
-|---|---|
-| `WHOP_APP_API_KEY` | the App API key (`apik_K7kGZ...`) |
-| `WHOP_APP_ID` | `app_aJFKUT7MnR5730` |
-
-`daily-cycle.yml` already exports both.
-
-## Prompt for Whop AI (only if the scope toggle isn't in your dashboard)
-
-> My app `app_aJFKUT7MnR5730` (company `biz_A79oVYva4QTT8Z`) uploads media
-> successfully via `mediaDirectUpload` with `record: access_pass`, and the S3
-> PUT returns 200. But calling `updateAccessPass` with
-> `galleryImages: [{id: <blobId>}]` returns
-> `403 forbidden — Required permission: access_pass:update`.
-> Where exactly do I grant `access_pass:update` to my app, and does it require
-> app review/approval? I am calling the API headless from a server with the App
-> API key, not from an iframe with a user token.

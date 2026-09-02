@@ -7,8 +7,11 @@ Verified live against the Whop API on 2026-09-02. The working sequence is:
      record: "access_pass"  <- a Whop "product" is an access_pass internally.
      Returns { id (signed blob id), uploadUrl (S3), headers }.
   2. PUT the raw bytes to uploadUrl with exactly the headers returned. -> 200
-  3. `updateAccessPass` mutation with galleryImages: [{ id: <blob id> }].
-     AttachmentInput accepts only `id`.
+  3. `mediaAnalyzeAttachment` with { directUploadId, mediaType: "image" }
+     (lowercase enum) to finalize the upload. Returns Boolean.
+  4. `attachment(id: <blob id>)` query -> resolves to the real **file_ ID**.
+     The signed blob id is NOT accepted by galleryImages; the `file_` id is.
+  5. `updateAccessPass` with galleryImages: [{ id: "file_..." }].
 
 Requires an **App API key** (WHOP_APP_API_KEY) plus the app id
 (WHOP_APP_ID) sent as x-whop-app-id. The plain company key gets 401 on
@@ -22,6 +25,7 @@ import base64
 import hashlib
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 
@@ -68,6 +72,12 @@ UPLOAD_MUT = (
     "mutation($i:DirectUploadInput!){mediaDirectUpload(input:$i)"
     "{id uploadUrl headers}}"
 )
+ANALYZE_MUT = (
+    "mutation($i:AnalyzeAttachmentInput!){mediaAnalyzeAttachment(input:$i)}"
+)
+ATTACHMENT_Q = (
+    "query($id:ID!){attachment(id:$id){id ... on ImageAttachment{source{url}}}}"
+)
 ATTACH_MUT = (
     "mutation($i:UpdateAccessPassInput!){updateAccessPass(input:$i)"
     "{id title galleryImages{source{url}}}}"
@@ -76,7 +86,7 @@ ATTACH_MUT = (
 
 def upload_image(url: str, filename: str = "cover.jpg",
                  content_type: str = "image/jpeg") -> str:
-    """Mirror a publicly hosted image into Whop. Returns the blob/attachment id."""
+    """Mirror a publicly hosted image into Whop. Returns the `file_...` id."""
     data = _fetch(url)
     checksum = base64.b64encode(hashlib.md5(data).digest()).decode()
     up = _gql(UPLOAD_MUT, {"i": {
@@ -93,7 +103,20 @@ def upload_image(url: str, filename: str = "cover.jpg",
     with urllib.request.urlopen(put, timeout=180) as r:
         if r.status not in (200, 201):
             raise RuntimeError(f"S3 upload returned {r.status}")
-    return up["id"]
+
+    # Finalize, then resolve the signed blob id into the persistent file_ id.
+    # Whop needs a beat to register the blob, so retry the lookup briefly.
+    _gql(ANALYZE_MUT, {"i": {"directUploadId": up["id"], "mediaType": "image"}})
+    last = None
+    for attempt in range(6):
+        try:
+            att = _gql(ATTACHMENT_Q, {"id": up["id"]})["attachment"]
+            if att and att.get("id"):
+                return att["id"]
+        except Exception as e:  # noqa: BLE001
+            last = e
+        time.sleep(1 + attempt)
+    raise RuntimeError(f"attachment did not resolve to a file id ({last})")
 
 
 def set_product_gallery(product_id: str, image_urls: list[str]) -> dict:
