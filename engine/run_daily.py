@@ -37,6 +37,47 @@ MAKE_VIDEO = os.environ.get("MAKE_VIDEO", "1") == "1"
 FREE_ASSET_LINK = os.environ.get("FREE_ASSET_LINK", "")
 
 
+# Distinct art per asset. The old version used two fixed templates, so every
+# pack came out looking the same: dark navy, one accent, centred bold type.
+# We vary the *visual treatment* deterministically per slug (so a given asset
+# is stable across reruns) and feed in the topic/category, not just the title.
+# Abstract/graphic styles only. Anything evoking characters or scenes (e.g.
+# "neon cyberpunk") makes the model produce portraits, which are useless as
+# product covers — verified: it returned an anime face.
+_STYLES = [
+    ("isometric 3d illustration", "deep indigo and coral", "floating geometric shapes and cubes"),
+    ("flat vector illustration", "forest green and warm cream", "layered paper-cutout depth"),
+    ("editorial graphic collage", "black, white and one electric yellow", "torn-paper texture"),
+    ("soft gradient mesh abstract", "sunset orange to violet", "translucent glassmorphic cards"),
+    ("technical blueprint diagram", "cyan lines on dark slate", "thin grid lines and callouts"),
+    ("bold retro geometric poster", "mustard, brick red and off-white", "chunky 70s shapes"),
+    ("minimal product still life", "muted greys with one teal accent", "soft studio shadows on plain objects"),
+    ("abstract data visualisation", "deep blue with lime accents", "flowing nodes and connecting lines"),
+]
+
+
+def _image_prompts(pack: dict, slug: str) -> list[str]:
+    """Two visually different prompts, varied per asset."""
+    import hashlib
+    h = int(hashlib.sha256(slug.encode()).hexdigest(), 16)
+    style, palette, motif = _STYLES[h % len(_STYLES)]
+    alt, alt_pal, alt_motif = _STYLES[(h // 7 + 3) % len(_STYLES)]
+    topic = pack.get("topic") or pack.get("category") or "AI productivity"
+    subject = pack.get("audience") or "creators"
+
+    return [
+        f"{style}, abstract conceptual cover art representing {topic}. "
+        f"Colour palette: {palette}. Featuring {motif}. No people, no faces, "
+        f"no characters. No text, no lettering, no words. Square, clean, "
+        f"generous negative space, professional business aesthetic.",
+
+        f"{alt}, abstract graphic representing {topic} for {subject}. "
+        f"Colour palette: {alt_pal}. Featuring {alt_motif}. No people, no "
+        f"faces. No text or typography. Square, striking, high contrast, "
+        f"professional business aesthetic.",
+    ]
+
+
 def one_asset(item: dict, idx: int) -> dict | None:
     topic = item["topic"]
     is_free = item["free"]
@@ -57,12 +98,7 @@ def one_asset(item: dict, idx: int) -> dict | None:
         # promo images
         images = []
         ip = pack.get("upsell", {}).get("pro_teaser", pack["subtitle"])
-        prompts = [
-            f"Minimal flat cover art for an AI prompt pack titled '{pack['title']}'. "
-            "Bold typography, dark background, one accent color, no clutter.",
-            f"Square social graphic advertising '{pack['title']}'. Modern SaaS style, "
-            f"product mockup, text '{pack['subtitle']}'.",
-        ][:N_IMAGES]
+        prompts = _image_prompts(pack, slug)[:N_IMAGES]
         for pi, p in enumerate(prompts):
             try:
                 images.append(str(media.gen_image(p, f"{slug}-{pi}")))

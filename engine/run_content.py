@@ -82,8 +82,26 @@ def attach_media(piece: dict, slug: str) -> str | None:
         return None
     prompt = (piece.get("image_prompt") or "").strip()
     if not prompt:
-        prompt = f"Square promo graphic for '{piece.get('title', slug)}'. " \
-                 "Modern SaaS style, bold type, dark background, one accent colour."
+        # Vary the fallback too — the old fixed template made every text-less
+        # post look identical. Seeded on slug+title so it is stable per post.
+        import hashlib
+        styles = [
+            ("isometric 3d render", "deep indigo and coral"),
+            ("flat vector illustration", "forest green and warm cream"),
+            ("editorial collage", "black, white and electric yellow"),
+            ("soft gradient mesh", "sunset orange to violet"),
+            ("technical blueprint", "cyan on dark slate"),
+            ("bold retro poster", "mustard, brick red and off-white"),
+        ]
+        seed = f"{slug}{piece.get('title','')}"
+        st, pal = styles[int(hashlib.sha256(seed.encode()).hexdigest(), 16) % len(styles)]
+        prompt = (f"{st} promo graphic about {piece.get('title', slug)}. "
+                  f"Colour palette: {pal}. No text or lettering anywhere. "
+                  f"Square, high contrast, generous negative space.")
+    # Image models reliably mangle rendered words (observed: "AICCHIMICTSKOA"),
+    # so suppress typography unless the piece explicitly asked for it.
+    if "text" not in prompt.lower():
+        prompt += " No text, no words, no lettering."
     try:
         import media  # local import: heavy deps only when actually needed
         import hosting

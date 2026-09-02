@@ -24,7 +24,8 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 def _cf_image(prompt: str, size: str = "1024x1024") -> bytes:
     account = os.environ["CF_ACCOUNT_ID"]
     url = f"https://api.cloudflare.com/client/v4/accounts/{account}/ai/run/@cf/black-forest-labs/flux-1-schnell"
-    payload = {"prompt": prompt}  # NOTE: num_steps is rejected by CF (2026)
+    # Flux rejects overly long prompts with a bare HTTP 400 (observed 2026-09).
+    payload = {"prompt": prompt[:1800]}  # NOTE: num_steps is rejected by CF
     req = urllib.request.Request(
         url, data=json.dumps(payload).encode(),
         headers={"Authorization": f"Bearer {os.environ['CF_API_TOKEN']}",
