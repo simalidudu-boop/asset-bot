@@ -118,7 +118,8 @@ def one_asset(item: dict, idx: int) -> dict | None:
             extra={"video_url": video_url,
                    "cover_status": res.get("cover_status"),
                    "gallery_images": res.get("gallery_images") or [],
-                   "marketplace_status": res.get("marketplace_status")})
+                   "marketplace_status": res.get("marketplace_status"),
+                   "faq": pack.get("faq") or []})
         if res.get("page_url"):
             mf = ROOT / "state" / "manifest.json"
             man = json.loads(mf.read_text())

@@ -13,7 +13,33 @@
       "status": "live",
       "cover_status": "set",
       "gallery_images": [],
-      "marketplace_status": "pending_review"
+      "marketplace_status": "pending_review",
+      "faq": [
+        {
+          "question": "What exactly do I get?",
+          "answer": "10 copy-paste prompts that turn a single topic into a LinkedIn carousel, a Twitter thread, a newsletter and more \u2014 delivered instantly as Markdown, PDF and DOCX."
+        },
+        {
+          "question": "Do I need a paid ChatGPT plan?",
+          "answer": "No. Every prompt is written to work on the free tiers of ChatGPT, Claude and Gemini."
+        },
+        {
+          "question": "How fast do I get access?",
+          "answer": "Immediately. The download links appear on this page the second you check out \u2014 there is no waiting and no email confirmation step."
+        },
+        {
+          "question": "Do I need any technical or writing skill?",
+          "answer": "None. Paste a prompt into your AI tool and swap the bracketed placeholders for your topic. If you can copy and paste, you can use this."
+        },
+        {
+          "question": "Can I use the output for client work?",
+          "answer": "Yes. Everything you generate is yours to use for your own business or for clients. The only limit is that you may not resell the pack itself."
+        },
+        {
+          "question": "What if it does not work for my niche?",
+          "answer": "The prompts are niche-agnostic by design \u2014 you supply the topic. If it genuinely is not a fit, reply on the product page and we will make it right."
+        }
+      ]
     },
     {
       "slug": "the-content-research-engine",
@@ -29,7 +55,33 @@
       "status": "live",
       "cover_status": "set",
       "gallery_images": [],
-      "marketplace_status": "pending_review"
+      "marketplace_status": "pending_review",
+      "faq": [
+        {
+          "question": "What exactly do I get?",
+          "answer": "8 targeted research prompts that turn hours of tab-hopping into a structured brief, plus the full pack in Markdown, PDF and DOCX."
+        },
+        {
+          "question": "How much time will this actually save?",
+          "answer": "The workflow is built to cut research time by roughly 80% \u2014 a brief that took an afternoon becomes a focused 20-minute pass."
+        },
+        {
+          "question": "Do I need a paid AI subscription?",
+          "answer": "No. Everything runs on the free tiers of ChatGPT, Claude or Gemini."
+        },
+        {
+          "question": "How fast do I get access?",
+          "answer": "Instantly. Your download links are on this page the moment checkout completes."
+        },
+        {
+          "question": "Is this just a list of prompts?",
+          "answer": "No \u2014 each prompt comes with the use case and the shape of output to expect, so you know exactly when to reach for it."
+        },
+        {
+          "question": "Can I use this for client work?",
+          "answer": "Yes. Use the research and outputs commercially. Please just don't resell the pack itself."
+        }
+      ]
     },
     {
       "slug": "zero-click-content-machine-6",
@@ -44,7 +96,8 @@
       "created": "2026-09-02T12:23:44Z",
       "video_url": null,
       "cover_status": null,
-      "gallery_images": []
+      "gallery_images": [],
+      "faq": []
     },
     {
       "slug": "zero-click-content-machine-7",
@@ -59,7 +112,8 @@
       "created": "2026-09-02T12:23:51Z",
       "video_url": null,
       "cover_status": null,
-      "gallery_images": []
+      "gallery_images": [],
+      "faq": []
     },
     {
       "slug": "zero-click-content-machine-8",
@@ -74,7 +128,8 @@
       "created": "2026-09-02T12:23:58Z",
       "video_url": null,
       "cover_status": null,
-      "gallery_images": []
+      "gallery_images": [],
+      "faq": []
     }
   ],
   "posts": [

@@ -449,6 +449,92 @@ export default {
       return json({ ok: true, key, value: !!value });
     }
 
+    // ---- FAQ experience page (embedded by Whop in an iframe) ----
+    // Whop renders our app at experience_path = /experiences/[experienceId].
+    // It appends ?productId=... (and other params) when embedding, so we
+    // resolve the product from the query first, then fall back to matching
+    // the experience id recorded in the manifest, then to the sole product.
+    if (p.startsWith("/experiences/") && request.method === "GET") {
+      const expId = decodeURIComponent(p.slice("/experiences/".length));
+      const qs = url.searchParams;
+      const wanted = qs.get("productId") || qs.get("product_id") ||
+                     qs.get("accessPassId") || qs.get("slug") || "";
+
+      let assets: any[] = [];
+      try {
+        const d = await gh(env, "GET",
+          `/repos/${env.GH_OWNER}/${env.GH_REPO}/contents/state/manifest.json`);
+        assets = (JSON.parse(atob(String(d.content).replace(/\s/g, ""))).assets) || [];
+      } catch { /* render the empty state below */ }
+
+      const live = assets.filter((a: any) => a.product_id && (a.faq || []).length);
+      let asset =
+        live.find((a: any) => a.product_id === wanted || a.slug === wanted) ||
+        live.find((a: any) => a.faq_experience_id === expId) ||
+        (live.length === 1 ? live[0] : null);
+
+      const esc = (t: string) => String(t ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+      let inner: string;
+      if (asset) {
+        inner = `<h1>${esc(asset.title)}</h1>
+    <p class="sub">Frequently asked questions</p>
+    ${(asset.faq || []).map((f: any, i: number) => `
+    <details${i === 0 ? " open" : ""}>
+      <summary>${esc(f.question)}</summary>
+      <div class="a">${esc(f.answer)}</div>
+    </details>`).join("")}`;
+      } else if (live.length > 1) {
+        // Embedded without a product hint and several products qualify —
+        // show them all rather than guessing wrong.
+        inner = `<h1>Frequently asked questions</h1>` + live.map((a: any) => `
+    <h2>${esc(a.title)}</h2>
+    ${(a.faq || []).map((f: any) => `
+    <details><summary>${esc(f.question)}</summary>
+      <div class="a">${esc(f.answer)}</div></details>`).join("")}`).join("");
+      } else {
+        inner = `<h1>Frequently asked questions</h1>
+    <p class="sub">No FAQ has been published for this product yet.</p>`;
+      }
+
+      const html = `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FAQ</title><style>
+  :root{color-scheme:light dark}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+       background:transparent;color:#e8eaed}
+  @media (prefers-color-scheme: light){body{color:#1a1a1a}}
+  .wrap{max-width:720px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 4px}
+  h2{font-size:16px;margin:28px 0 8px;opacity:.85}
+  .sub{margin:0 0 20px;opacity:.6;font-size:14px}
+  details{border:1px solid rgba(128,128,128,.28);border-radius:10px;
+          padding:14px 16px;margin-bottom:10px;background:rgba(128,128,128,.06)}
+  details[open]{background:rgba(128,128,128,.10)}
+  summary{cursor:pointer;font-weight:600;list-style:none;display:flex;
+          justify-content:space-between;align-items:center;gap:12px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";font-size:18px;opacity:.5;flex:0 0 auto}
+  details[open] summary::after{content:"\u2212"}
+  .a{margin-top:10px;opacity:.85}
+</style></head><body><div class="wrap">
+    ${inner}
+</div></body></html>`;
+
+      return new Response(html, {
+        headers: {
+          "content-type": "text/html; charset=utf-8",
+          // Must be embeddable by Whop. Explicitly allow framing (no
+          // X-Frame-Options) and keep it fresh-ish at the edge.
+          "content-security-policy": "frame-ancestors https://whop.com https://*.whop.com",
+          "cache-control": "public, max-age=120",
+          "x-faq-product": asset?.product_id ?? "none",
+        },
+      });
+    }
+
     // ---- cron claim: GitHub's fallback schedule checks in here first ----
     // Returns {claimed:false} when the Worker already dispatched this slot,
     // so the dead-man's-switch run exits instead of duplicating the work.
