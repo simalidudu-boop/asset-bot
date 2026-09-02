@@ -57,6 +57,8 @@ jobs:
         if: steps.claim.outputs.skip != '1'
         env:
           WHOP_API_KEY: ${{ secrets.WHOP_API_KEY }}
+          WHOP_APP_API_KEY: ${{ secrets.WHOP_APP_API_KEY }}
+          WHOP_APP_ID: ${{ secrets.WHOP_APP_ID }}
           WHOP_COMPANY_ID: ${{ secrets.WHOP_COMPANY_ID }}
           OWN_FORUM_ID: ${{ secrets.OWN_FORUM_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
