@@ -184,3 +184,54 @@ exists on the product but is an empty shell until either:
 
 Option 2 is the fast path today. Option 1 makes FAQs fully hands-off and is the
 only route that avoids `app_authorization:create` entirely.
+
+## Worker-hosted FAQ page (built 2026-09-02)
+
+The FAQ content now lives in `state/manifest.json` (`asset.faq`) and the Worker
+renders it at:
+
+```
+GET /experiences/:experienceId?productId=prod_xxx
+```
+
+Whop's `experience_path` is `/experiences/[experienceId]` and it appends the
+product id when embedding, so the route resolves in this order:
+
+1. `?productId=` / `?product_id=` / `?accessPassId=` / `?slug=` from the query
+2. `asset.faq_experience_id === :experienceId` from the manifest
+3. the sole product, if only one has FAQs
+4. otherwise render **every** product's FAQ rather than guessing wrong
+
+Verified live:
+
+| Request | Result |
+|---|---|
+| `?productId=prod_3rUWWBYz3FsuL` | Zero-Click Content Machine, 6 questions |
+| `?productId=prod_F080AA8beZEie` | The Content Research Engine, 6 questions |
+| no query hint | both products, 2 sections / 12 questions |
+
+The page is a self-contained accordion (`<details>`), no external assets, dark
+and light aware, transparent background so it blends into Whop's chrome. It
+sends `content-security-policy: frame-ancestors https://whop.com
+https://*.whop.com` and **no** `X-Frame-Options`, so Whop can embed it.
+
+### BLOCKER: `base_url` cannot be set via the API
+
+`PATCH /apps/{id}` with `base_url` returns **200 and silently does nothing** —
+re-reading shows `base_url: null`. This is *not* an unknown-field error: a
+deliberately bogus field returns 400, and `name` patches persist fine, so PATCH
+works and `base_url` is accepted-then-ignored. Same false-success class as
+`banner_image`.
+
+**Manual step (one time, ~1 minute):** Whop dashboard -> Developer -> app
+`asset-bot` -> set the hosted/base URL to
+
+```
+https://asset-bot-edge.simalidudu.workers.dev
+```
+
+and confirm **Experience path** is `/experiences/[experienceId]`.
+
+Once that URL is set, the FAQ tab already attached to every product renders the
+generated FAQ automatically, for all future products, with no further Whop
+permissions and no per-product work.
