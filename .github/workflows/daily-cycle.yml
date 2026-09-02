@@ -113,9 +113,8 @@ jobs:
           echo "::error::could not push state after 5 attempts"; exit 1
 
       - name: Upload artifacts (deliverables + media)
-        if: steps.claim.outputs.skip != '1'
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.claim.outputs.skip != '1'
         with:
           name: daily-assets-${{ github.run_id }}
           path: |
