@@ -34,6 +34,28 @@ import whop_client as whop
 REQUIRED_TEXT = ("title", "headline", "description")
 
 
+def faq_report(product_id: str, faq: list[dict] | None) -> dict:
+    """FAQs cannot be written through the API (verified: `faq` is rejected by
+    v1 PATCH exactly like an unknown parameter, and UpdateAccessPassInput has
+    no faq field — AccessPass.faq is read-only). So emit the generated copy in
+    a paste-ready form and report whether the live product has any.
+    """
+    out = {"product_id": product_id, "generated": faq or [], "live_count": 0}
+    try:
+        p = whop._request("GET", f"/products/{product_id}")
+        out["live_count"] = len(p.get("faq") or [])
+    except Exception:  # noqa: BLE001
+        pass
+    if faq and not out["live_count"]:
+        print(f"[faq] {product_id} has no FAQ on Whop. "
+              f"{len(faq)} generated Q&A ready to paste "
+              f"(Product editor -> FAQs):")
+        for f in faq:
+            print(f"   Q: {f['question']}")
+            print(f"   A: {f['answer']}")
+    return out
+
+
 def check_requirements(product_id: str, company_id: str | None = None) -> dict:
     """Return {"ok": bool, "missing": [...], "product": {...}}."""
     missing: list[str] = []

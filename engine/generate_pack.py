@@ -37,6 +37,9 @@ SCHEMA = """{
      "code": {"language": "python", "snippet": "print('runnable')",
               "explanation": "what the code does"}}
   ],
+  "faq": [
+    {"question": "buyer question", "answer": "clear 1-2 sentence answer"}
+  ],
   "upsell": {
     "pro_teaser": "what the paid deep-dive adds",
     "custom_work_cta": "one line pitching custom work"
@@ -44,6 +47,13 @@ SCHEMA = """{
 }"""
 
 MOCK_PACK = {
+    "faq": [
+        {"question": "What exactly do I get?",
+         "answer": "Every prompt and skill in this pack as an instant "
+                   "download in Markdown, PDF and DOCX."},
+        {"question": "Do I need a paid AI subscription?",
+         "answer": "No — everything works on free ChatGPT, Claude or Gemini."},
+    ],
     "title": "Zero-Click Content Machine",
     "subtitle": "Automate a week of content in one prompt",
     "category": "prompt-pack",
@@ -126,7 +136,52 @@ def generate(topic: str, mock: bool = False) -> dict:
         {"role": "system", "content": system_prompt(topic)},
         {"role": "user", "content": f"Create the pack for: {topic}"},
     ]
-    return textgen.get_json(messages, max_tokens=4000, quality=True)
+    pack = textgen.get_json(messages, max_tokens=4000, quality=True)
+    return ensure_faq(pack)
+
+
+# Whop's store page has a dedicated FAQ section and it is a real conversion
+# lever. The API cannot write it (see docs/MARKETPLACE.md), so we generate the
+# copy, ship it in the deliverable, and expose it for one paste into the editor.
+DEFAULT_FAQ = [
+    {"question": "What exactly do I get?",
+     "answer": "An instant download containing every prompt and skill in this "
+               "pack, in Markdown, PDF and DOCX so it works wherever you do."},
+    {"question": "Do I need a paid AI subscription?",
+     "answer": "No. Every prompt works on the free tiers of ChatGPT, Claude "
+               "and Gemini."},
+    {"question": "How fast do I get access?",
+     "answer": "Immediately. The download links are on this page the moment "
+               "you check out."},
+    {"question": "Do I need any technical skill?",
+     "answer": "None. Copy a prompt, paste it into your AI tool, and replace "
+               "the bracketed placeholders with your own details."},
+    {"question": "Can I use this for client work?",
+     "answer": "Yes. Use the outputs in your own business or for clients. "
+               "Please don't resell the pack itself."},
+]
+
+
+def ensure_faq(pack: dict) -> dict:
+    """Guarantee a usable FAQ, whatever the model returned."""
+    faq = pack.get("faq")
+    clean = []
+    if isinstance(faq, list):
+        for item in faq:
+            if isinstance(item, dict):
+                q = (item.get("question") or item.get("q") or "").strip()
+                a = (item.get("answer") or item.get("a") or "").strip()
+                if q and a:
+                    clean.append({"question": q, "answer": a})
+    # top up to at least 4 entries without duplicating questions
+    have = {c["question"].lower() for c in clean}
+    for d in DEFAULT_FAQ:
+        if len(clean) >= 4:
+            break
+        if d["question"].lower() not in have:
+            clean.append(dict(d))
+    pack["faq"] = clean
+    return pack
 
 
 def render_markdown(pack: dict, topic: str, links: dict) -> str:
@@ -162,6 +217,12 @@ def render_markdown(pack: dict, topic: str, links: dict) -> str:
                 L.append(f"*{s['code']['explanation']}*\n")
     L.append("---\n")
     L.append("## Level up\n")
+    if pack.get("faq"):
+        L.append("---\n")
+        L.append("## FAQ\n")
+        for f in pack["faq"]:
+            L.append(f"**{f['question']}**\n")
+            L.append(f"{f['answer']}\n")
     L.append(f"{pack['upsell']['pro_teaser']}\n")
     L.append(f"👉 [Get the Pro version]({pro})\n")
     L.append(f"{pack['upsell']['custom_work_cta']}\n")

@@ -78,3 +78,31 @@ The validator was also proven negative: `prod_XzidDlN33ult6` correctly reported
 - **Reviews**: some third-party guides claim Discover also wants at least one
   paid product and a genuine customer review. Whop's own changelog says
   approval is instant. We cannot control reviews programmatically either way.
+
+## FAQs — generated, but not writable via API
+
+Whop product store pages have a dedicated **FAQs** section. It is a real
+conversion lever and both our products shipped with it empty.
+
+**It cannot be set through the API.** Verified three ways:
+
+- `PATCH /api/v1/products/{id}` with `faq` -> `400 Invalid value for parameter 'faq'`.
+  A deliberately bogus parameter (`unknown_zzz`) returns the *identical* error,
+  so `faq` is simply unrecognised — not merely mis-shaped. Tried list-of-objects,
+  object map, `title`/`content` keys and an empty list: all identical.
+- `UpdateAccessPassInput` has **no** `faq` field (`Field is not defined`).
+- The schema has a `FaqObject` type and `AccessPass.faq` is **readable**, but
+  there is no FAQ mutation anywhere in the schema.
+
+So the factory does the half it can:
+
+- `generate_pack.py` now asks the model for a `faq` array, and `ensure_faq()`
+  guarantees at least 4 sensible Q&As even when the model omits them or returns
+  a malformed shape (it keeps whatever the model produced and tops up).
+- FAQs are rendered into the deliverable itself (a `## FAQ` section), so buyers
+  get the answers even while the store page section is empty.
+- `marketplace.faq_report()` prints the generated Q&A in paste-ready form on
+  every publish, and reports whether the live product already has any.
+
+**Manual step:** Product editor -> FAQs -> Add question. Copy for the two
+existing products is in `docs/FAQ_TO_PASTE.md`.
