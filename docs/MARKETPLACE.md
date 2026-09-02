@@ -120,6 +120,23 @@ shows up under `publicAccessPass.experiences`). Creation needs one permission:
 | App key (`app_aJFKUT7MnR5730`) | `experience:create` |
 | Company key | `app_authorization:create` |
 
+**Whop freezes an app's grants at INSTALL time.** Adding a permission to the
+app afterwards updates `requested_permissions` but does **not** apply to an
+existing install — the API keeps returning 403. Proof: `experience:attach`
+(present at the original install) returns 200, while `experience:create`
+(added later) still 403s with the identical key.
+
+Fix: **re-install the app** at
+<https://whop.com/apps/app_aJFKUT7MnR5730/install/> and accept the new
+permission list. Verify the grant took with:
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $WHOP_APP_API_KEY" \
+  -H 'Content-Type: application/json' -H 'x-whop-app-id: app_aJFKUT7MnR5730' \
+  -d '{"app_id":"app_PsBytos2S7vFcG","company_id":"biz_A79oVYva4QTT8Z","name":"FAQ"}' \
+  https://api.whop.com/api/v1/experiences
+```
+
 Even with the app attached, the FAQs app has **no public write API** — the
 questions are typed in the app UI. So the factory generates the copy, ships it
 in the deliverable, prints it paste-ready, and creates the sidebar slot.

@@ -175,7 +175,14 @@ def ensure_faq_experience(product_id: str, company_id: str,
             out["created"] = True
         except Exception as e:  # noqa: BLE001
             out.update(status="needs_permission", error=str(e)[:200])
-            print(f"[faq] cannot create FAQ experience: {e}")
+            if "experience:create" in str(e):
+                print("[faq] experience:create denied. NOTE: Whop freezes an "
+                      "app's grants at INSTALL time — adding a permission to "
+                      "the app afterwards does not apply to an existing "
+                      "install. Re-install the app to pick it up: "
+                      "https://whop.com/apps/app_aJFKUT7MnR5730/install/")
+            else:
+                print(f"[faq] cannot create FAQ experience: {e}")
             return out
 
     exp_id = exp.get("id")
