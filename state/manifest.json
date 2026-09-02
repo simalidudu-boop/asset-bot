@@ -5,60 +5,40 @@
       "title": "Zero-Click Content Machine",
       "topic": "AI content automation for creators",
       "kind": "prompt-pack",
-      "page_url": "https://whop.com/the-algorithmic-daemon-concern/zero-click-content-machine",
-      "created": "2026-09-01T11:02:51Z",
-      "free": true,
-      "price": 0.0,
-      "product_id": "prod_3rUWWBYz3FsuL",
-      "status": "live"
+      "page_url": "",
+      "created": "2026-09-01T11:02:51Z"
     },
     {
-      "slug": "zero-click-content-machine-2",
+      "slug": "zero-click-content-machine",
       "title": "Zero-Click Content Machine",
       "topic": "Prompt engineering for small business owners",
       "kind": "prompt-pack",
       "page_url": "",
-      "created": "2026-09-01T11:02:51Z",
-      "free": false,
-      "price": null,
-      "product_id": null,
-      "status": "orphaned"
+      "created": "2026-09-01T11:02:51Z"
     },
     {
-      "slug": "zero-click-content-machine-3",
+      "slug": "zero-click-content-machine",
       "title": "Zero-Click Content Machine",
       "topic": "Automating social media with AI agents",
       "kind": "prompt-pack",
       "page_url": "",
-      "created": "2026-09-01T11:37:25Z",
-      "free": false,
-      "price": null,
-      "product_id": null,
-      "status": "orphaned"
+      "created": "2026-09-01T11:37:25Z"
     },
     {
-      "slug": "zero-click-content-machine-4",
+      "slug": "zero-click-content-machine",
       "title": "Zero-Click Content Machine",
       "topic": "ChatGPT prompt systems for freelancers",
       "kind": "prompt-pack",
       "page_url": "",
-      "created": "2026-09-01T11:37:33Z",
-      "free": false,
-      "price": null,
-      "product_id": null,
-      "status": "orphaned"
+      "created": "2026-09-01T11:37:33Z"
     },
     {
-      "slug": "zero-click-content-machine-5",
+      "slug": "zero-click-content-machine",
       "title": "Zero-Click Content Machine",
       "topic": "AI image prompts for product marketing",
       "kind": "prompt-pack",
       "page_url": "",
-      "created": "2026-09-01T11:37:41Z",
-      "free": false,
-      "price": null,
-      "product_id": null,
-      "status": "orphaned"
+      "created": "2026-09-01T11:37:41Z"
     },
     {
       "slug": "the-content-research-engine",
@@ -67,11 +47,7 @@
       "kind": "prompt-pack",
       "page_url": "https://whop.com/the-algorithmic-daemon-concern/the-content-research-engine",
       "created": "2026-09-01T13:24:16Z",
-      "video_url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/the-content-research-engine.the-content-research-engine.mp4",
-      "free": false,
-      "price": 11.0,
-      "product_id": "prod_F080AA8beZEie",
-      "status": "live"
+      "video_url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/the-content-research-engine.the-content-research-engine.mp4"
     }
   ],
   "posts": [
