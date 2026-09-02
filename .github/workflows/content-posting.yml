@@ -5,7 +5,7 @@ on:
   schedule:
     # :17 past the hour — the top of the hour is GitHub's worst contention
     # window for scheduled runs, which was dropping most of ours (audit P2)
-    - cron: "17 1,4,7,10,13,16,19,22 * * *"
+    - cron: "40 2,5,8,11,14,17,20,23 * * *"
   workflow_dispatch:
     inputs:
       mock:
@@ -23,17 +23,36 @@ jobs:
   post:
     runs-on: ubuntu-latest
     steps:
+      - name: Skip if Worker cron already ran this slot
+        id: claim
+        if: github.event_name == 'schedule'
+        env:
+          EDGE_URL: https://asset-bot-edge.simalidudu.workers.dev
+        run: |
+          R=$(curl -sf -X POST "$EDGE_URL/api/cronclaim" \
+                -H 'Content-Type: application/json' \
+                -d '{"workflow":"content-posting"}' || echo '{"claimed":true}')
+          echo "claim: $R"
+          if echo "$R" | grep -q '"claimed":false'; then
+            echo "Worker cron already dispatched this slot - exiting."
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.claim.outputs.skip != '1'
 
       - uses: actions/setup-python@v5
+        if: steps.claim.outputs.skip != '1'
         with:
           python-version: "3.12"
 
 
       - name: Install deps
+        if: steps.claim.outputs.skip != '1'
         run: pip install -q weasyprint python-docx markdown curl_cffi
 
       - name: Generate + post one piece
+        if: steps.claim.outputs.skip != '1'
         env:
           WHOP_API_KEY: ${{ secrets.WHOP_API_KEY }}
           WHOP_COMPANY_ID: ${{ secrets.WHOP_COMPANY_ID }}
@@ -77,6 +96,7 @@ jobs:
           python3 engine/run_content.py
 
       - name: Commit state back
+        if: steps.claim.outputs.skip != '1'
         run: |
           git config user.name "asset-bot"
           git config user.email "bot@users.noreply.github.com"

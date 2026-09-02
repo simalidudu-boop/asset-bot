@@ -440,6 +440,32 @@ export default {
       return json({ ok: true, key, value: !!value });
     }
 
+    // ---- cron claim: GitHub's fallback schedule checks in here first ----
+    // Returns {claimed:false} when the Worker already dispatched this slot,
+    // so the dead-man's-switch run exits instead of duplicating the work.
+    if (p === "/api/cronclaim" && request.method === "POST") {
+      const { workflow } = (await request.json()) as { workflow: string };
+      if (!workflow) return json({ error: "workflow required" }, 400);
+      const now = new Date();
+      // Fallbacks run 1h+ after the Worker slot; check this hour and the last two.
+      for (let back = 0; back <= 2; back++) {
+        const d = new Date(now.getTime() - back * 3600_000);
+        const hit = await env.BOT_STATE.get(
+          `cronlock:${workflow}:${d.toISOString().slice(0, 13)}`);
+        if (hit) return json({ ok: true, claimed: false, reason: "worker-cron-ran" });
+      }
+      const slot = `${workflow}:${now.toISOString().slice(0, 13)}`;
+      await env.BOT_STATE.put(`cronlock:${slot}`, String(Date.now()),
+                              { expirationTtl: 10800 });
+      return json({ ok: true, claimed: true, reason: "worker-cron-missed" });
+    }
+
+    // ---- cron delivery log (Worker cron -> GitHub dispatch) ----
+    if (p === "/api/cronlog" && request.method === "GET") {
+      const log = JSON.parse((await env.BOT_STATE.get("cronlog")) ?? "[]");
+      return json({ ok: true, source: "cloudflare-cron", count: log.length, log });
+    }
+
     // ---- dispatch workflows ----
     if (p === "/api/dispatch" && request.method === "POST") {
       if (!authed(env, request)) return json({ error: "unauthorized" }, 401);
@@ -492,5 +518,52 @@ export default {
     }
 
     return json({ ok: true, service: "asset-bot-edge", v: 5 });
+  },
+
+  /**
+   * Cloudflare Cron Triggers -> GitHub workflow_dispatch.
+   *
+   * GitHub's `schedule:` events are best-effort and were running an average of
+   * 87 minutes late (samples: 69/89/138/51), sometimes being dropped outright.
+   * Cloudflare cron fires on time, so timing now lives here and GitHub only
+   * ever receives an explicit, immediate dispatch.
+   *
+   * The `schedule:` blocks stay in the workflows as a dead-man's switch: if the
+   * Worker stops firing, GitHub still eventually runs the job. To keep that
+   * from double-running, each dispatch takes a KV lock keyed to the run slot.
+   */
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    const cron = event.cron;
+    const workflow = cron.startsWith("20 6") ? "daily-cycle" : "content-posting";
+    const file = workflow === "daily-cycle" ? "daily-cycle.yml" : "content-posting.yml";
+
+    // Lock slot = workflow + UTC hour, so the GitHub schedule fallback (which
+    // fires later in the same hour) sees the lock and skips.
+    const now = new Date();
+    const slot = `${workflow}:${now.toISOString().slice(0, 13)}`;
+    const already = await env.BOT_STATE.get(`cronlock:${slot}`);
+    if (already) return;
+    await env.BOT_STATE.put(`cronlock:${slot}`, String(Date.now()), {
+      expirationTtl: 10800,
+    });
+
+    // Respect the kill switch, same as a manual dispatch would.
+    if ((await env.BOT_STATE.get("kill")) === "1") return;
+
+    ctx.waitUntil((async () => {
+      try {
+        await gh(env, "POST",
+                 `/repos/${env.GH_OWNER}/${env.GH_REPO}/actions/workflows/${file}/dispatches`,
+                 { ref: "main", inputs: {} });
+        const log = JSON.parse((await env.BOT_STATE.get("cronlog")) ?? "[]");
+        log.unshift({ at: new Date().toISOString(), cron, workflow, ok: true });
+        await env.BOT_STATE.put("cronlog", JSON.stringify(log.slice(0, 50)));
+      } catch (e) {
+        const log = JSON.parse((await env.BOT_STATE.get("cronlog")) ?? "[]");
+        log.unshift({ at: new Date().toISOString(), cron, workflow,
+                      ok: false, error: String(e) });
+        await env.BOT_STATE.put("cronlog", JSON.stringify(log.slice(0, 50)));
+      }
+    })());
   },
 };

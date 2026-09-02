@@ -3,7 +3,7 @@ name: daily-asset-cycle
 # Free assets go live automatically; paid assets enter the review queue.
 on:
   schedule:
-    - cron: "23 6 * * *"     # 06:23 UTC daily — off the top of the hour (audit P2)
+    - cron: "50 7 * * *"     # 06:23 UTC daily — off the top of the hour (audit P2)
   workflow_dispatch:
     inputs:
       mock:
@@ -22,20 +22,39 @@ jobs:
   daily:
     runs-on: ubuntu-latest
     steps:
+      - name: Skip if Worker cron already ran this slot
+        id: claim
+        if: github.event_name == 'schedule'
+        env:
+          EDGE_URL: https://asset-bot-edge.simalidudu.workers.dev
+        run: |
+          R=$(curl -sf -X POST "$EDGE_URL/api/cronclaim" \
+                -H 'Content-Type: application/json' \
+                -d '{"workflow":"daily-cycle"}' || echo '{"claimed":true}')
+          echo "claim: $R"
+          if echo "$R" | grep -q '"claimed":false'; then
+            echo "Worker cron already dispatched this slot - exiting."
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.claim.outputs.skip != '1'
 
       - uses: actions/setup-python@v5
+        if: steps.claim.outputs.skip != '1'
         with:
           python-version: "3.12"
 
 
       - name: Install deps
+        if: steps.claim.outputs.skip != '1'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg pandoc
           pip install -q weasyprint python-docx markdown curl_cffi
 
       - name: Run daily cycle
+        if: steps.claim.outputs.skip != '1'
         env:
           WHOP_API_KEY: ${{ secrets.WHOP_API_KEY }}
           WHOP_COMPANY_ID: ${{ secrets.WHOP_COMPANY_ID }}
@@ -75,6 +94,7 @@ jobs:
           python3 engine/run_daily.py
 
       - name: Commit state back (dedupe index, manifest, budgets)
+        if: steps.claim.outputs.skip != '1'
         run: |
           git config user.name "asset-bot"
           git config user.email "bot@users.noreply.github.com"
@@ -91,6 +111,7 @@ jobs:
           echo "::error::could not push state after 5 attempts"; exit 1
 
       - name: Upload artifacts (deliverables + media)
+        if: steps.claim.outputs.skip != '1'
         uses: actions/upload-artifact@v4
         if: always()
         with:
