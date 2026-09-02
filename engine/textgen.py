@@ -8,9 +8,10 @@ workflow cache), and cascades on auth/rate-limit/server failures.
 All providers are OpenAI-compatible except where noted. Every API key is
 OPTIONAL: the cascade simply skips providers whose key is missing.
 
-Provider priority (quality-critical): mistral > gemini > groq > cerebras
-                                  > gh-models > cloudflare > xai
-Provider priority (bulk/cheap):   groq > cerebras > gh-models > gemini > cloudflare
+Provider priority (quality-critical): mistral > gemini > xai > groq > cloudflare
+Provider priority (bulk/cheap):       groq > gemini > cloudflare > mistral
+
+Cerebras and GitHub Models were removed in 2026 (free tiers retired).
 """
 import json
 import os

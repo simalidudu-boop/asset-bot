@@ -3,7 +3,7 @@ name: daily-asset-cycle
 # Free assets go live automatically; paid assets enter the review queue.
 on:
   schedule:
-    - cron: "0 6 * * *"      # 06:00 UTC daily (1 asset batch/day)
+    - cron: "23 6 * * *"     # 06:23 UTC daily — off the top of the hour (audit P2)
   workflow_dispatch:
     inputs:
       mock:
@@ -62,6 +62,7 @@ jobs:
           N_FREE: "1"
           N_PAID: "2"
         run: |
+          DRY_RUN=0; MOCK=0; export DRY_RUN MOCK
           S=$(curl -sf "$EDGE_URL/api/status" || echo '{}')
           K=$(echo "$S" | python3 -c "import json,sys;print('1' if json.load(sys.stdin).get('kill') else '0')" 2>/dev/null || echo 0)
           if [ "$K" = "1" ]; then echo "KILL SWITCH ON — aborting run"; exit 0; fi
@@ -75,9 +76,16 @@ jobs:
           git config user.name "asset-bot"
           git config user.email "bot@users.noreply.github.com"
           git add state/ out/daily_summary.json 2>/dev/null || true
-          git commit -m "bot: state update $(date -u +%F)" || echo "nothing to commit"
-          git pull --rebase -q || echo "rebase skipped"
-          git push || echo "push skipped (no changes)"
+          git commit -m "bot: state update $(date -u +%F)" || { echo "nothing to commit"; exit 0; }
+          # concurrent bot runs race on state/ — retry rebase+push (audit P11)
+          for i in 1 2 3 4 5; do
+            if git pull --rebase --autostash -q && git push -q; then
+              echo "state pushed (attempt $i)"; exit 0
+            fi
+            echo "push attempt $i failed — retrying"; git rebase --abort 2>/dev/null || true
+            sleep $((i * 5))
+          done
+          echo "::error::could not push state after 5 attempts"; exit 1
 
       - name: Upload artifacts (deliverables + media)
         uses: actions/upload-artifact@v4

@@ -72,5 +72,15 @@ Comment **`/approve`** to publish to Whop, or **`/reject <reason>`** to archive.
     return {"number": issue["number"], "url": issue["html_url"]}
 
 
+def close_issue(number: int, reason: str = "completed"):
+    """Close a review issue. GitHub 422s on a bare {'state':'closed'} for some
+    issue types, so send an explicit state_reason and fall back if rejected."""
+    try:
+        return _gh("PATCH", f"/issues/{number}",
+                   {"state": "closed", "state_reason": reason})
+    except Exception:
+        return _gh("PATCH", f"/issues/{number}", {"state": "closed"})
+
+
 def comment(number: int, text: str):
     return _gh("POST", f"/issues/{number}/comments", {"body": text})

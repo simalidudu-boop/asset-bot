@@ -106,9 +106,15 @@ def one_asset(item: dict, idx: int) -> dict | None:
 
         res = publish.publish_asset(pack, slug, file_urls, image_urls, description)
 
-        # record for content engine
-        topics.record_asset(slug, pack["title"], topic, pack.get("category"),
-                            extra={"video_url": video_url})
+        # record for content engine — persist free/price/product_id/status so
+        # pick_assets() and the dashboard stop guessing (see audit P3)
+        slug = topics.record_asset(
+            slug, pack["title"], topic, pack.get("category"),
+            free=bool(is_free),
+            price=res.get("price"),
+            product_id=res.get("product_id"),
+            status=res.get("status", "staged"),
+            extra={"video_url": video_url})
         if res.get("page_url"):
             mf = ROOT / "state" / "manifest.json"
             man = json.loads(mf.read_text())

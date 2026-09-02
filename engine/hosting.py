@@ -120,7 +120,7 @@ def upload_files(slug: str, paths: list[Path]) -> list[dict]:
     for p in paths:
         if not p.exists():
             continue
-        url = upload_asset(rid, p, name=f"{slug}/{p.name}")
+        url = upload_asset(rid, p, name=f"{slug}-{p.name}")
         out.append({"name": p.name, "url": url})
     return out
 
@@ -135,7 +135,7 @@ def upload_images(slug: str, image_paths: list[Path]) -> list[str]:
     for i, p in enumerate(image_paths):
         if not p.exists():
             continue
-        out.append(upload_asset(rid, p, name=f"{slug}/{slug}-img-{i + 1}.jpg"))
+        out.append(upload_asset(rid, p, name=f"{slug}-img-{i + 1}.jpg"))
     return out
 
 
@@ -143,4 +143,4 @@ def upload_video(slug: str, video_path: Path) -> str | None:
     if not video_path or not video_path.exists():
         return None
     rid = ensure_release(weekly_tag())
-    return upload_asset(rid, video_path, name=f"{slug}/{video_path.name}")
+    return upload_asset(rid, video_path, name=f"{slug}-{video_path.name}")

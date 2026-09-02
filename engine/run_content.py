@@ -35,9 +35,13 @@ def pick_assets(n: int) -> list[dict]:
         return []
     man = json.loads(mf.read_text())
     assets = man.get("assets", [])
-    free = [a for a in assets if a.get("free", True)]
+    # only promote assets that are explicitly free AND actually reachable —
+    # an asset with no product_id/page_url was never published (audit P3/P4)
+    free = [a for a in assets
+            if a.get("free") is True and (a.get("page_url") or a.get("product_id"))]
     if not free:
-        free = assets
+        print("[content] no published free assets to promote — skipping run")
+        return []
     ptr = STATE / "roundrobin.txt"
     idx = int(ptr.read_text().strip()) if ptr.exists() else 0
     chosen = [free[(idx + i) % len(free)] for i in range(min(n, len(free)))]
@@ -46,10 +50,14 @@ def pick_assets(n: int) -> list[dict]:
 
 
 def asset_link(a: dict) -> str:
+    """Resolve the asset's public page. Only ever returns a URL we believe
+    exists; callers must not fabricate one from a slug (audit P4)."""
     if a.get("page_url"):
-        return a["page_url"]
+        return a["page_url"].rstrip("/")
     base = os.environ.get("PRODUCT_PAGE_BASE", "").rstrip("/")
-    return f"{base}/{a['slug']}" if base else f"{a['slug']}"
+    if base and a.get("product_id"):
+        return f"{base}/{a['slug']}"
+    return ""
 
 
 def main():
@@ -64,7 +72,16 @@ def main():
         link = asset_link(a)
         upsell = {"pro_teaser": f"Pro version of {a['title']}: 3x the prompts, "
                                 f"video walkthrough, private templates."}
-        pieces = content.content_set(a, upsell, link, n=1, lang=lang)
+        # rotate formats ACROSS runs (N_POSTS=1 means within-run index is
+        # always 0, so every post was 'text' — audit P7)
+        fmt_ptr = STATE / "fmt_rotation.txt"
+        try:
+            fmt_idx = int(fmt_ptr.read_text().strip())
+        except Exception:
+            fmt_idx = 0
+        pieces = content.content_set(a, upsell, link, n=1, lang=lang,
+                                     start_index=fmt_idx)
+        fmt_ptr.write_text(str((fmt_idx + 1) % len(content.FORMATS)))
         for p in pieces:
             results.append(post.post_piece(p))
             # persist what we posted (for dedupe/tracking)

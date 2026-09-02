@@ -7,6 +7,7 @@ goes to your own forum (OWN_FORUM_ID). Posts are staggered (POST_STAGGER_SEC)
 to avoid spam patterns. DRY_RUN=1 prints instead of posting.
 """
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -23,6 +24,18 @@ STAGGER = int(os.environ.get("POST_STAGGER_SEC", "600"))
 MAX_POSTS_PER_RUN = int(os.environ.get("MAX_POSTS_PER_RUN", "4"))
 
 
+_URL_RE = re.compile(r"(https?://[^\s<>\)\]]+?)([.,;:!?]+)(?=\s|$)")
+
+
+def fix_links(text: str) -> str:
+    """Whop 404s on a URL with a glued trailing period (audit P4).
+
+    'see https://whop.com/x/y.' -> the '.' becomes part of the path. Move any
+    trailing sentence punctuation outside the link by inserting a space.
+    """
+    return _URL_RE.sub(lambda m: f"{m.group(1)} {m.group(2)}", text)
+
+
 def _variation(body: str, title: str) -> tuple[str, str]:
     """Small structural variation for the second forum so the two posts
     aren't byte-identical (same content, different wrapper)."""
@@ -32,10 +45,11 @@ def _variation(body: str, title: str) -> tuple[str, str]:
     return body + "\n\nWhich one of these would you use first?", t2
 
 
-def _post(target: dict, piece: dict, variant: str) -> dict | None:
+def _post(target: dict, piece: dict) -> dict | None:
     label = target["label"]
     try:
-        payload = dict(experience_id=target["experience_id"], content=piece["body"],
+        payload = dict(experience_id=target["experience_id"],
+                       content=fix_links(piece["body"]),
                        title=piece["title"])
         if target.get("company_id"):
             payload["company_id"] = target["company_id"]
@@ -79,9 +93,9 @@ def post_piece(piece: dict, media_url: str | None = None) -> dict:
         variant_piece = piece
 
     out = {}
-    out["public"] = _post(targets[0], piece, "A")
+    out["public"] = _post(targets[0], piece)
     if len(targets) > 1:
-        out["own"] = _post(targets[1], variant_piece, "B")
+        out["own"] = _post(targets[1], variant_piece)
     return out
 
 

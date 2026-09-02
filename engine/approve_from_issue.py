@@ -56,8 +56,11 @@ def main():
                               payload.get("pack", {}).get("metadata"))
         review.comment(number, f"✅ Published! Plan `{res['plan_id']}` created at "
                                f"${payload['price']} and product is now visible.")
-        # close the issue
-        review._gh("PATCH", f"/issues/{number}", {"state": "closed"})
+        # close the issue — cosmetic; never fail the run if GitHub rejects it
+        try:
+            review.close_issue(number)
+        except Exception as e:
+            print(f"[approve] publish OK but issue close failed ({e}) — ignoring")
     except Exception as e:
         review.comment(number, f"❌ Publish failed: {e}")
         raise

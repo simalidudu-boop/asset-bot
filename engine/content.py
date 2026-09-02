@@ -78,12 +78,18 @@ def generate_piece(asset: dict, fmt: str, upsell: dict, link: str,
 
 
 def content_set(asset: dict, upsell: dict, link: str,
-                n: int = 4, lang: str = "en") -> list[dict]:
-    """Generate n pieces, cycling formats so no two posts look alike."""
+                n: int = 4, lang: str = "en",
+                start_index: int = 0) -> list[dict]:
+    """Generate n pieces, cycling formats so no two posts look alike.
+
+    start_index lets the caller persist rotation across runs, so a run that
+    only makes one piece still advances text -> image -> video -> question.
+    """
     pieces = []
     for i in range(n):
-        fmt = FORMATS[i % len(FORMATS)]
-        pieces.append(generate_piece(asset, fmt, upsell, link, cta_idx=i, lang=lang))
+        fmt = FORMATS[(start_index + i) % len(FORMATS)]
+        pieces.append(generate_piece(asset, fmt, upsell, link,
+                                     cta_idx=start_index + i, lang=lang))
     return pieces
 
 

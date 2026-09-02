@@ -10,6 +10,7 @@ import json
 import math
 import os
 import re
+from datetime import datetime, timezone
 import sys
 import urllib.request
 from pathlib import Path
@@ -110,11 +111,23 @@ def is_dup(topic: str, threshold: float = 0.85) -> bool:
             return True
     if not used_texts:
         return False
-    vecs = embed([topic] + used_texts)
+    # reuse cached vectors for already-used topics; only embed what's new
+    # (the 'vectors' cache was never populated before — audit P14)
+    cache = idx.setdefault("vectors", {})
+    missing = [t for t in used_texts if t not in cache]
+    to_embed = [topic] + missing
+    vecs = embed(to_embed)
     if not vecs:
         print("[topics] no embedder available — skipping semantic dedupe")
         return False
-    sim = max(_cos(vecs[0], v) for v in vecs[1:])
+    topic_vec = vecs[0]
+    for t, v in zip(missing, vecs[1:]):
+        cache[t] = v
+    _save_index(idx)
+    used_vecs = [cache[t] for t in used_texts if t in cache]
+    if not used_vecs:
+        return False
+    sim = max(_cos(topic_vec, v) for v in used_vecs)
     print(f"[topics] '{topic}' max similarity vs used: {sim:.3f}")
     return sim >= threshold
 
@@ -143,17 +156,41 @@ def pick_daily(n_free: int = 1, n_paid: int = 2) -> list[dict]:
     return out
 
 
+def unique_slug(slug: str, manifest: dict) -> str:
+    """Never reuse a slug: append -2, -3 ... so each asset maps to one product."""
+    existing = {a.get("slug") for a in manifest.get("assets", [])}
+    if slug not in existing:
+        return slug
+    n = 2
+    while f"{slug}-{n}" in existing:
+        n += 1
+    return f"{slug}-{n}"
+
+
 def record_asset(slug: str, title: str, topic: str, kind: str,
-                 extra: dict | None = None):
-    """Append to the manifest that content.py reads."""
+                 free: bool = False, price: float | None = None,
+                 product_id: str | None = None, status: str = "staged",
+                 extra: dict | None = None) -> str:
+    """Append to the manifest that content.py reads.
+
+    Persists free/price/product_id/status so the content engine and the
+    dashboard can tell free from paid and live from pending. Returns the
+    (possibly de-duplicated) slug actually recorded.
+    """
     mf = STATE / "manifest.json"
     manifest = json.loads(mf.read_text()) if mf.exists() else {"assets": [], "posts": []}
+    slug = unique_slug(slug, manifest)
     record = {
         "slug": slug, "title": title, "topic": topic, "kind": kind,
+        "free": bool(free),
+        "price": price,
+        "product_id": product_id,
+        "status": status,
         "page_url": "",  # filled by publish.py after creation
-        "created": os.popen("date -u +%Y-%m-%dT%H:%M:%SZ").read().strip(),
+        "created": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     if extra:
         record.update(extra)
     manifest["assets"].append(record)
     mf.write_text(json.dumps(manifest, indent=2))
+    return slug
