@@ -3,278 +3,338 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Daemon Command Center</title>
+<title>Asset Bot — Command Center</title>
 <style>
-  :root { --bg:#0a0e14; --panel:#11161f; --panel2:#161d29; --line:#1f2836;
-          --txt:#d7e0ea; --dim:#7d8a9c; --acc:#22d3ee; --ok:#34d399;
-          --warn:#fbbf24; --bad:#f87171; --paid:#a78bfa; --free:#34d399; }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--txt); font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; padding:18px; }
-  header { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:16px; }
-  h1 { font-size:18px; letter-spacing:1px; color:#fff; }
-  .sub { color:var(--dim); font-size:11px; }
-  .pills { display:flex; gap:8px; flex-wrap:wrap; margin-left:auto; }
-  .pill { border:1px solid var(--line); background:var(--panel); padding:4px 10px; border-radius:99px; font-size:11px; display:flex; align-items:center; gap:6px; }
-  .dot { width:8px; height:8px; border-radius:50%; background:var(--dim); }
-  .dot.ok { background:var(--ok); box-shadow:0 0 8px var(--ok); }
-  .dot.bad { background:var(--bad); box-shadow:0 0 8px var(--bad); }
-  .dot.warn { background:var(--warn); }
-  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:14px; }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; }
-  .card h2 { font-size:12px; letter-spacing:1.5px; text-transform:uppercase; color:var(--acc); margin-bottom:10px; }
-  button { background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:8px 12px; cursor:pointer; font:inherit; font-size:12px; }
-  button:hover { border-color:var(--acc); }
-  button.primary { background:var(--acc); color:#04222a; border:none; font-weight:700; }
-  button.danger { background:transparent; border-color:var(--bad); color:var(--bad); }
-  button.danger.active { background:var(--bad); color:#2a0505; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
-  .item { border-top:1px solid var(--line); padding:8px 0; font-size:12px; }
-  .item:first-of-type { border-top:none; }
-  .tag { font-size:10px; padding:1px 7px; border-radius:99px; border:1px solid var(--line); }
-  .tag.free { color:var(--free); border-color:var(--free); }
-  .tag.paid { color:var(--paid); border-color:var(--paid); }
-  .tag.live { color:var(--ok); border-color:var(--ok); }
-  .tag.pending { color:var(--warn); border-color:var(--warn); }
-  a { color:var(--acc); text-decoration:none; }
-  a:hover { text-decoration:underline; }
-  .muted { color:var(--dim); font-size:11px; }
-  .bar { height:4px; background:var(--panel2); border-radius:2px; margin-top:4px; overflow:hidden; }
-  .bar > div { height:100%; background:var(--acc); }
-  .toast { position:fixed; bottom:18px; right:18px; background:var(--panel2); border:1px solid var(--acc); border-radius:8px; padding:10px 14px; font-size:12px; opacity:0; transition:opacity .3s; }
-  .toast.show { opacity:1; }
-  input[type=checkbox] { accent-color:var(--acc); }
-  .hidden { display:none; }
+  :root{
+    --bg:#0a0c10; --panel:#12151c; --panel2:#171b24; --line:#242a36;
+    --fg:#e6edf3; --muted:#8b95a5; --ok:#34d399; --warn:#fbbf24; --bad:#f87171;
+    --paid:#a78bfa; --free:#34d399; --accent:#60a5fa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+         padding:14px 20px;border-bottom:1px solid var(--line);
+         background:var(--panel);position:sticky;top:0;z-index:20}
+  h1{font-size:16px;margin:0;letter-spacing:.3px}
+  h1 span{color:var(--muted);font-weight:400}
+  .pills{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+  .pill{display:flex;align-items:center;gap:6px;background:var(--panel2);
+        border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .dot.ok{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .dot.bad{background:var(--bad);box-shadow:0 0 8px var(--bad)}
+  .dot.warn{background:var(--warn);box-shadow:0 0 8px var(--warn)}
+  main{padding:18px;display:grid;gap:16px;
+       grid-template-columns:repeat(auto-fit,minmax(340px,1fr));max-width:1600px;margin:0 auto}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .card.wide{grid-column:1/-1}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);
+           margin:0;padding:12px 14px;border-bottom:1px solid var(--line);
+           display:flex;align-items:center;gap:8px}
+  .card h2 .badge{margin-left:auto;background:var(--panel2);border:1px solid var(--line);
+                  border-radius:999px;padding:1px 8px;font-size:11px;color:var(--fg)}
+  .body{padding:12px 14px;max-height:420px;overflow:auto}
+  .item{padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .item:last-child{border-bottom:0}
+  .muted{color:var(--muted);font-size:12px}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  button{background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+         border-radius:8px;padding:9px 13px;cursor:pointer;font-size:13px;font-weight:500}
+  button:hover{border-color:var(--accent)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.danger{border-color:#5b2330;color:#fca5a5}
+  button.danger.active{background:#7f1d1d;color:#fff;border-color:#b91c1c}
+  button.warn.active{background:#78350f;color:#fff;border-color:#b45309}
+  button.go{border-color:#14532d;color:#86efac}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .tag{font-size:10px;border:1px solid var(--line);border-radius:4px;padding:1px 6px;
+       text-transform:uppercase;letter-spacing:.5px}
+  .tag.free{color:var(--free);border-color:var(--free)}
+  .tag.paid{color:var(--paid);border-color:var(--paid)}
+  .tag.live{color:var(--ok);border-color:var(--ok)}
+  .tag.orphaned{color:var(--bad);border-color:var(--bad)}
+  .tag.pending{color:var(--warn);border-color:var(--warn)}
+  .alert{background:#2a1416;border:1px solid #7f1d1d;color:#fca5a5;
+         padding:9px 12px;border-radius:8px;margin-bottom:8px;font-size:13px}
+  .alert.warn{background:#2a2110;border-color:#78350f;color:#fcd34d}
+  .alert.ok{background:#0f2418;border-color:#14532d;color:#86efac}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+  .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px}
+  .kpi .n{font-size:23px;font-weight:600;line-height:1.1}
+  .kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+  .bar{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;margin-top:5px}
+  .bar>i{display:block;height:100%;background:var(--accent)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--muted);font-weight:500;padding:6px 8px;
+     border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase}
+  td{padding:7px 8px;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:0}
+  code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .toast{position:fixed;right:16px;bottom:16px;background:var(--panel2);
+         border:1px solid var(--accent);border-radius:8px;padding:11px 15px;
+         opacity:0;transition:.25s;z-index:50}
+  .toast.show{opacity:1}
+  .spark{display:flex;gap:2px;align-items:flex-end;height:34px;margin-top:6px}
+  .spark i{flex:1;background:var(--accent);border-radius:1px;min-height:2px;opacity:.75}
+  .spark i.late{background:var(--warn)}
+  .spark i.vlate{background:var(--bad)}
 </style>
 </head>
 <body>
 <header>
-  <div>
-    <h1>⚡ DAEMON COMMAND CENTER</h1>
-    <div class="sub">The Algorithmic Daemon Concern · asset-bot · $0 infra</div>
-  </div>
+  <h1>⚡ Asset Bot <span>Command Center</span></h1>
   <div class="pills">
-    <span class="pill"><span class="dot" id="d-worker"></span>WORKER</span>
-    <span class="pill"><span class="dot" id="d-kill"></span>KILL SWITCH <b id="kill-txt">?</b></span>
-    <span class="pill"><span class="dot" id="d-dry"></span>DRY RUN <b id="dry-txt">?</b></span>
-    <span class="pill" id="d-lastrun">LAST RUN —</span>
+    <div class="pill"><span class="dot" id="d-worker"></span>WORKER</div>
+    <div class="pill"><span class="dot" id="d-kill"></span>KILL <b id="kill-txt">?</b></div>
+    <div class="pill"><span class="dot" id="d-dry"></span>DRY <b id="dry-txt">?</b></div>
+    <div class="pill"><span class="dot" id="d-beat"></span><span id="beat-txt">heartbeat</span></div>
+    <div class="pill" id="d-lastrun">—</div>
   </div>
 </header>
 
-<div class="card" style="margin-bottom:14px">
-  <div class="row">
-    <button class="primary" onclick="dispatch('daily-cycle')">▶ RUN DAILY CYCLE</button>
-    <button class="primary" onclick="dispatch('content-posting')">▶ RUN CONTENT POST</button>
-    <label class="muted" style="display:flex;align-items:center;gap:6px">
-      <input type="checkbox" id="mock"> mock mode (no real posts)
-    </label>
-    <button id="btn-kill" class="danger" onclick="setFlag('kill_switch', !killState)">☠ KILL SWITCH</button>
-    <button onclick="setFlag('dry_run', !dryState)" id="btn-dry">🛟 DRY RUN</button>
-  </div>
-  <div class="muted">Kill switch aborts every scheduled run. Dry run generates everything but posts nothing to Whop. The control token is stored only in your browser.</div>
-</div>
-
-<div class="grid">
-  <div class="card">
-    <h2>Review queue — paid assets</h2>
-    <div id="issues">loading…</div>
+<main>
+  <!-- ALERTS -->
+  <div class="card wide">
+    <h2>🚨 Alerts <span class="badge" id="alert-n">0</span></h2>
+    <div class="body" id="alerts"><div class="muted">loading…</div></div>
   </div>
 
-  <div class="card">
-    <h2>Pipeline runs</h2>
-    <div id="runs">loading…</div>
+  <!-- CONTROLS -->
+  <div class="card wide">
+    <h2>🎛 Controls</h2>
+    <div class="body">
+      <div class="row" style="margin-bottom:10px">
+        <button class="go" onclick="dispatch('daily-cycle')">▶ Run daily cycle</button>
+        <button class="go" onclick="dispatch('content-posting')">▶ Run content post</button>
+        <label class="muted"><input type="checkbox" id="mock" checked> mock mode (safe, posts nothing)</label>
+      </div>
+      <div class="row">
+        <button class="danger" id="btn-kill" onclick="toggle('kill_switch')">☠ Kill switch</button>
+        <button class="warn" id="btn-dry" onclick="toggle('dry_run')">🛟 Dry run</button>
+        <button onclick="refreshAll()">🔄 Refresh</button>
+        <button onclick="resetToken()">🔑 Reset token</button>
+        <span class="muted" id="updated"></span>
+      </div>
+      <div class="muted" style="margin-top:9px">
+        Kill switch aborts every scheduled run. Dry run generates but never publishes.
+        Both persist in Cloudflare KV. Token is stored only in this browser.
+      </div>
+    </div>
   </div>
 
-  <div class="card">
-    <h2>Assets</h2>
-    <div id="assets">loading…</div>
+  <!-- KPIs -->
+  <div class="card wide">
+    <h2>📊 At a glance</h2>
+    <div class="body"><div class="kpis" id="kpis"></div></div>
   </div>
 
+  <!-- PIPELINE HEALTH -->
   <div class="card">
-    <h2>Posts</h2>
-    <div id="posts">loading…</div>
+    <h2>🩺 Workflow health <span class="badge" id="wf-n">—</span></h2>
+    <div class="body"><table id="wf"><tbody><tr><td class="muted">loading…</td></tr></tbody></table></div>
   </div>
 
+  <!-- CRON PUNCTUALITY -->
   <div class="card">
-    <h2>LLM provider budgets (today)</h2>
-    <div id="providers">loading…</div>
+    <h2>⏱ Cron punctuality <span class="badge" id="lag-avg">—</span></h2>
+    <div class="body">
+      <div class="muted">Minutes late per scheduled content run (GitHub queues cron under load).</div>
+      <div class="spark" id="spark"></div>
+      <div class="muted" id="lag-note" style="margin-top:8px"></div>
+    </div>
   </div>
 
+  <!-- REVIEW QUEUE -->
   <div class="card">
-    <h2>Events (webhooks)</h2>
-    <div id="events">loading…</div>
+    <h2>✅ Review queue <span class="badge" id="rev-n">0</span></h2>
+    <div class="body" id="review"><div class="muted">loading…</div></div>
   </div>
-</div>
+
+  <!-- ASSETS -->
+  <div class="card">
+    <h2>📦 Assets <span class="badge" id="asset-n">0</span></h2>
+    <div class="body" id="assets"><div class="muted">loading…</div></div>
+  </div>
+
+  <!-- POSTS -->
+  <div class="card">
+    <h2>📝 Posts <span class="badge" id="post-n">0</span></h2>
+    <div class="body" id="posts"><div class="muted">loading…</div></div>
+  </div>
+
+  <!-- RUNS -->
+  <div class="card">
+    <h2>🏃 Recent runs</h2>
+    <div class="body" id="runs"><div class="muted">loading…</div></div>
+  </div>
+</main>
 
 <div class="toast" id="toast"></div>
 
 <script>
-const REPO = "simalidudu-boop/asset-bot";
-const WORKER = "https://asset-bot-edge.simalidudu.workers.dev";
-let killState = null, dryState = null;
+const WORKER = location.origin;
+const REPO   = "simalidudu-boop/asset-bot";
+let killState=false, dryState=false;
 
-function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 3200); }
-function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
-function token() { return localStorage.getItem("bot_token") || ""; }
-async function ensureToken() {
-  if (token()) return true;
-  const v = prompt("Control token (from setup) — stored only in this browser:");
-  if (v) { localStorage.setItem("bot_token", v.trim()); return true; }
-  toast("token required"); return false;
-}
-async function wfetch(path, opts = {}) {
-  const r = await fetch(WORKER + path, opts);
-  return r.json();
-}
-async function setFlag(key, val) {
-  if (!await ensureToken()) return;
-  const r = await wfetch("/api/set", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Bot-Token": token() },
-    body: JSON.stringify({ key, value: val }),
-  });
-  if (r.ok) { toast(`${key} → ${val ? "ON" : "OFF"}`); refreshStatus(); } else toast("failed: " + (r.error || ""));
-}
-async function dispatch(wf) {
-  if (!await ensureToken()) return;
-  const mock = document.getElementById("mock").checked;
-  const r = await wfetch("/api/dispatch", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Bot-Token": token() },
-    body: JSON.stringify({ workflow: wf, mock }),
-  });
-  if (r.ok) { toast(`dispatched ${wf}${mock ? " (mock)" : ""}`); setTimeout(refreshAll, 4000); }
-  else toast("dispatch failed: " + (r.error || ""));
-}
-async function review(issue, command) {
-  if (!await ensureToken()) return;
-  const r = await wfetch("/api/comment", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Bot-Token": token() },
-    body: JSON.stringify({ issue, command }),
-  });
-  if (r.ok) { toast(`sent ${command} on #${issue}`); setTimeout(refreshAll, 4000); }
-  else toast("failed: " + (r.error || ""));
+const esc = s => String(s ?? "").replace(/[<>&"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+const ago = m => m==null ? "—" : m<60 ? `${m}m ago` : m<1440 ? `${Math.round(m/60)}h ago` : `${Math.round(m/1440)}d ago`;
+function toast(t){const el=document.getElementById("toast");el.textContent=t;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2600);}
+function token(){return localStorage.getItem("bot_token")||"";}
+function needToken(){if(token())return true;const v=prompt("Control token:");if(v){localStorage.setItem("bot_token",v.trim());return true;}toast("token required");return false;}
+function resetToken(){localStorage.removeItem("bot_token");toast("token cleared");}
+function setDot(id,state){const d=document.getElementById(id);d.className="dot "+state;}
+
+async function wfetch(path,opts={}){const r=await fetch(WORKER+path,opts);return r.json();}
+
+async function toggle(key){
+  if(!needToken())return;
+  const cur = key==="kill_switch"?killState:dryState;
+  if(key==="kill_switch" && !cur && !confirm("Enable KILL SWITCH? Every scheduled run will abort."))return;
+  const r=await wfetch("/api/set",{method:"POST",
+    headers:{"Content-Type":"application/json","X-Bot-Token":token()},
+    body:JSON.stringify({key,value:!cur})});
+  if(r.ok){toast(`${key} = ${r.value?"ON":"OFF"}`);refreshAll();}else toast("failed: "+(r.error||""));
 }
 
-// ---------- GitHub reads (proxied through the Worker — no browser rate limits) ----------
-async function ghGet(path) {
-  const r = await fetch(`${WORKER}/api/github?path=${encodeURIComponent(path)}`);
-  if (!r.ok) throw new Error(r.status);
-  return r.json();
-}
-async function ghFile(path) {
-  const d = await ghGet(`/repos/${REPO}/contents/${path}`);
-  return JSON.parse(atob(d.content.replace(/\s/g, "")));
-}
-
-async function refreshStatus() {
-  try {
-    const s = await wfetch("/api/status");
-    killState = s.kill; dryState = s.dry;
-    setDot("d-worker", true); setDot("d-kill", s.kill); setDot("d-dry", s.dry);
-    document.getElementById("kill-txt").textContent = s.kill ? "ON" : "OFF";
-    document.getElementById("dry-txt").textContent = s.dry ? "ON" : "OFF";
-    const bk = document.getElementById("btn-kill");
-    bk.classList.toggle("active", s.kill);
-  } catch { setDot("d-worker", false); }
-}
-function setDot(id, on) { const d = document.getElementById(id); d.className = "dot " + (on ? "ok" : "bad"); }
-
-async function refreshRuns() {
-  try {
-    const runs = (await ghGet(`/repos/${REPO}/actions/runs?per_page=8`)).workflow_runs;
-    const el = document.getElementById("runs");
-    el.innerHTML = runs.map(r => {
-      const icon = r.status === "completed" ? (r.conclusion === "success" ? "✅" : "❌") : (r.status === "in_progress" ? "⏳" : "🕒");
-      return `<div class="item">${icon} <a href="${r.html_url}" target="_blank">${esc(r.name)}</a>
-        <div class="muted">${r.event} · ${new Date(r.created_at).toLocaleString()} · ${r.conclusion || r.status}</div></div>`;
-    }).join("") || "<div class='muted'>no runs yet</div>";
-    const latest = runs.find(r => r.event === "schedule" || r.event === "workflow_dispatch");
-    if (latest) document.getElementById("d-lastrun").textContent =
-      `LAST ${new Date(latest.created_at).toLocaleTimeString()} ${latest.conclusion || latest.status}`;
-  } catch (e) { document.getElementById("runs").innerHTML = `<div class='muted'>error ${e}</div>`; }
+async function dispatch(wf){
+  if(!needToken())return;
+  const mock=document.getElementById("mock").checked;
+  if(!mock && !confirm(`Run ${wf} for REAL? This publishes to Whop.`))return;
+  const r=await wfetch("/api/dispatch",{method:"POST",
+    headers:{"Content-Type":"application/json","X-Bot-Token":token()},
+    body:JSON.stringify({workflow:wf,mock})});
+  if(r.ok){toast(`dispatched ${wf}${mock?" (mock)":""}`);setTimeout(refreshAll,6000);}
+  else toast("failed: "+(r.error||""));
 }
 
-async function refreshIssues() {
-  try {
-    const q = encodeURIComponent(`repo:${REPO} label:asset-review state:open`);
-    const res = await ghGet(`/search/issues?q=${q}`);
-    const el = document.getElementById("issues");
-    if (!res.items.length) { el.innerHTML = "<div class='muted'>queue empty — nothing awaiting approval</div>"; return; }
-    el.innerHTML = res.items.map(i => {
-      const title = i.title.replace("[Review] ", "");
-      return `<div class="item"><b>${esc(title)}</b>
-        <div class="muted">#${i.number} · ${new Date(i.created_at).toLocaleDateString()}</div>
+async function review(issue,command){
+  if(!needToken())return;
+  if(!confirm(`Send ${command} on issue #${issue}?`))return;
+  const r=await wfetch("/api/comment",{method:"POST",
+    headers:{"Content-Type":"application/json","X-Bot-Token":token()},
+    body:JSON.stringify({issue,command})});
+  if(r.ok){toast(`sent ${command} on #${issue}`);setTimeout(refreshAll,5000);}
+  else toast("failed: "+(r.error||""));
+}
+
+async function refreshAll(){
+  let s;
+  try{
+    s = await wfetch("/api/summary");
+    if(!s.ok) throw new Error(s.error||"bad summary");
+    setDot("d-worker","ok");
+  }catch(e){
+    setDot("d-worker","bad");
+    document.getElementById("alerts").innerHTML=`<div class="alert">Worker unreachable: ${esc(e)}</div>`;
+    return;
+  }
+
+  killState=s.flags.kill; dryState=s.flags.dry;
+  setDot("d-kill",killState?"bad":"ok");
+  setDot("d-dry",dryState?"warn":"ok");
+  document.getElementById("kill-txt").textContent=killState?"ON":"OFF";
+  document.getElementById("dry-txt").textContent=dryState?"ON":"OFF";
+  document.getElementById("btn-kill").classList.toggle("active",killState);
+  document.getElementById("btn-dry").classList.toggle("active",dryState);
+  document.getElementById("updated").textContent="updated "+new Date().toLocaleTimeString();
+
+  // heartbeat pill
+  const hb=s.heartbeat.contentAgeMin;
+  setDot("d-beat", hb==null?"bad":hb>260?"warn":"ok");
+  document.getElementById("beat-txt").textContent="beat "+ago(hb);
+
+  // alerts
+  const al=document.getElementById("alerts");
+  document.getElementById("alert-n").textContent=s.alerts.length;
+  al.innerHTML = s.alerts.length
+    ? s.alerts.map(a=>`<div class="alert ${/KILL|FAILED|orphan/i.test(a)?"":"warn"}">${esc(a)}</div>`).join("")
+    : `<div class="alert ok">✅ No alerts — pipeline nominal.</div>`;
+
+  // KPIs
+  document.getElementById("kpis").innerHTML=`
+    <div class="kpi"><div class="n">${s.assets.total}</div><div class="l">assets</div></div>
+    <div class="kpi"><div class="n" style="color:var(--free)">${s.assets.free}</div><div class="l">free</div></div>
+    <div class="kpi"><div class="n" style="color:var(--paid)">${s.assets.paid}</div><div class="l">paid</div></div>
+    <div class="kpi"><div class="n" style="color:${s.assets.orphaned?"var(--bad)":"var(--fg)"}">${s.assets.orphaned}</div><div class="l">orphaned</div></div>
+    <div class="kpi"><div class="n">${s.posts.total}</div><div class="l">posts</div></div>
+    <div class="kpi"><div class="n">${s.posts.today}</div><div class="l">today</div></div>
+    <div class="kpi"><div class="n">${s.review.open}</div><div class="l">awaiting you</div></div>
+    <div class="kpi"><div class="n">${s.cron.avgLagMin??"—"}<span style="font-size:13px">m</span></div><div class="l">avg cron lag</div></div>`;
+
+  // workflow health
+  const wfRows=Object.entries(s.workflows).map(([k,v])=>`
+    <tr><td>${esc(k)}</td>
+        <td><span class="tag ${v.lastConclusion==="success"?"live":"orphaned"}">${esc(v.lastConclusion||"?")}</span></td>
+        <td>${v.successRate}%<div class="bar"><i style="width:${v.successRate}%;background:${v.successRate>80?"var(--ok)":v.successRate>50?"var(--warn)":"var(--bad)"}"></i></div></td>
+        <td class="muted">${ago(v.ageMin)}</td></tr>`).join("");
+  document.getElementById("wf").innerHTML=
+    `<thead><tr><th>workflow</th><th>last</th><th>success rate</th><th>when</th></tr></thead><tbody>${wfRows||'<tr><td class="muted">none</td></tr>'}</tbody>`;
+  document.getElementById("wf-n").textContent=Object.keys(s.workflows).length;
+
+  // cron sparkline
+  const lags=s.cron.lags||[];
+  document.getElementById("spark").innerHTML = lags.length
+    ? lags.slice().reverse().map(l=>{
+        const h=Math.min(100,(l/180)*100);
+        const cls=l>90?"vlate":l>30?"late":"";
+        return `<i class="${cls}" style="height:${Math.max(4,h)}%" title="${l} min late"></i>`;}).join("")
+    : '<span class="muted">no scheduled runs yet</span>';
+  document.getElementById("lag-avg").textContent=s.cron.avgLagMin!=null?`avg ${s.cron.avgLagMin}m`:"—";
+  document.getElementById("lag-note").textContent = s.cron.avgLagMin==null ? "" :
+    s.cron.avgLagMin>60 ? "⚠ GitHub is queueing your cron heavily. Consider triggering via Worker cron + repository_dispatch."
+    : "Within normal GitHub scheduling variance.";
+
+  // review queue
+  document.getElementById("rev-n").textContent=s.review.open;
+  document.getElementById("review").innerHTML = s.review.items.length
+    ? s.review.items.map(i=>`<div class="item"><a href="${i.url}" target="_blank">#${i.number} ${esc(i.title)}</a>
         <div class="row" style="margin-top:6px">
-          <button onclick="review(${i.number},'/approve')">✅ Approve</button>
-          <button onclick="review(${i.number},'/reject denied')">✖ Reject</button>
-          <a href="${i.html_url}" target="_blank" class="muted">open issue ↗</a>
-        </div></div>`;
-    }).join("");
-  } catch (e) { document.getElementById("issues").innerHTML = `<div class='muted'>error ${e}</div>`; }
+          <button class="go" onclick="review(${i.number},'/approve')">✅ Approve</button>
+          <button class="danger" onclick="review(${i.number},'/reject')">✖ Reject</button>
+        </div></div>`).join("")
+    : '<div class="muted">Nothing awaiting approval.</div>';
+
+  // assets
+  document.getElementById("asset-n").textContent=s.assets.total;
+  document.getElementById("assets").innerHTML = s.assets.list.length
+    ? s.assets.list.map(a=>`<div class="item">
+        <span class="tag ${a.free?"free":"paid"}">${a.free?"FREE":"PAID"}</span>
+        <span class="tag ${a.status==="live"?"live":a.status==="orphaned"?"orphaned":"pending"}">${esc(a.status||"staged")}</span>
+        ${a.page_url?`<a href="${a.page_url}" target="_blank">${esc(a.title||a.slug)}</a>`:esc(a.title||a.slug)}
+        ${a.price!=null?`<span class="muted"> · $${a.price}</span>`:""}
+        <div class="muted">${esc(a.topic||"")}</div></div>`).join("")
+    : '<div class="muted">no assets</div>';
+
+  // posts
+  document.getElementById("post-n").textContent=s.posts.total;
+  const fmts=Object.entries(s.posts.formats).map(([k,v])=>`${k}:${v}`).join("  ");
+  document.getElementById("posts").innerHTML =
+    `<div class="muted" style="margin-bottom:8px">formats → ${esc(fmts)||"—"}</div>` +
+    (s.posts.list.length ? s.posts.list.map(p=>`<div class="item">${esc(p.title)}
+        <div class="muted">${esc(p.fmt)} · ${esc(p.lang)} · ${esc(p.asset)} · ${esc(p.at||"")}</div></div>`).join("")
+      : '<div class="muted">no posts</div>');
+
+  loadRuns();
 }
 
-async function refreshAssets() {
-  try {
-    const man = await ghFile("state/manifest.json");
-    const assets = (man.assets || []).slice(-12).reverse();
-    const el = document.getElementById("assets");
-    el.innerHTML = assets.map(a => `
-      <div class="item">
-        <span class="tag ${a.free ? 'free' : 'paid'}">${a.free ? 'FREE' : 'PAID'}</span>
-        ${a.page_url ? `<a href="${esc(a.page_url)}" target="_blank">${esc(a.title)}</a>` : esc(a.title)}
-        <span class="tag ${a.status === 'live' ? 'live' : 'pending'}">${esc(a.status || 'staged')}</span>
-        <div class="muted">${esc(a.kind || "")} · ${esc(a.topic || "")} · ${esc(a.created || "")}</div>
-      </div>`).join("") || "<div class='muted'>no assets yet — run the daily cycle</div>";
-  } catch { document.getElementById("assets").innerHTML = "<div class='muted'>state not published yet</div>"; }
+async function loadRuns(){
+  try{
+    const d=await (await fetch(`${WORKER}/api/github?path=${encodeURIComponent(`/repos/${REPO}/actions/runs?per_page=10`)}`)).json();
+    const runs=d.workflow_runs||[];
+    document.getElementById("runs").innerHTML=runs.map(r=>{
+      const ic=r.status!=="completed"?"⏳":r.conclusion==="success"?"✅":"❌";
+      return `<div class="item">${ic} <a href="${r.html_url}" target="_blank">${esc(r.name)}</a>
+        <div class="muted">${esc(r.event)} · ${new Date(r.created_at).toLocaleString()}</div></div>`;}).join("")
+      ||'<div class="muted">no runs</div>';
+    const latest=runs[0];
+    if(latest)document.getElementById("d-lastrun").textContent=
+      `LAST ${new Date(latest.created_at).toLocaleTimeString()} ${latest.conclusion||latest.status}`;
+  }catch(e){document.getElementById("runs").innerHTML=`<div class="muted">error ${esc(e)}</div>`;}
 }
 
-async function refreshPosts() {
-  try {
-    const man = await ghFile("state/manifest.json");
-    const posts = (man.posts || []).slice(-15).reverse();
-    document.getElementById("posts").innerHTML = posts.map(p => `
-      <div class="item">📣 <b>${esc(p.title || p.asset)}</b>
-        <div class="muted">${esc(p.fmt || "")} · ${esc(p.lang || "en")} · ${esc(p.at || "")}</div>
-      </div>`).join("") || "<div class='muted'>no posts yet</div>";
-  } catch { document.getElementById("posts").innerHTML = "<div class='muted'>state not published yet</div>"; }
-}
-
-async function refreshProviders() {
-  try {
-    const dir = await ghGet(`/repos/${REPO}/contents/state?t=${Date.now()}`);
-    const files = dir.filter(f => f.name.startsWith("llm_")).map(f => f.name);
-    const el = document.getElementById("providers");
-    if (!files.length) { el.innerHTML = "<div class='muted'>no budget files yet</div>"; return; }
-    el.innerHTML = await Promise.all(files.map(async f => {
-      const b = await ghFile("state/" + f);
-      const name = f.replace("llm_", "").replace(".json", "");
-      const pct = Math.min(100, Math.round((b.calls || 0) / 400 * 100));
-      return `<div class="item">${esc(name)} <span class="muted">(${b.calls || 0} calls today)</span>
-        <div class="bar"><div style="width:${pct}%"></div></div></div>`;
-    })).then(a => a.join(""));
-  } catch { document.getElementById("providers").innerHTML = "<div class='muted'>—</div>"; }
-}
-
-async function refreshEvents() {
-  try {
-    const d = await ghGet(`/repos/${REPO}/contents/state/events.jsonl?t=${Date.now()}`);
-    const lines = atob(d.content.replace(/\s/g, "")).trim().split("\n").filter(Boolean).slice(-10).reverse();
-    document.getElementById("events").innerHTML = lines.map(l => {
-      try { const e = JSON.parse(l);
-        return `<div class="item">💰 <b>${esc(e.kind)}</b>
-          <div class="muted">${esc(e.at || "")}</div></div>`;
-      } catch { return ""; }
-    }).join("") || "<div class='muted'>no events yet</div>";
-  } catch { document.getElementById("events").innerHTML = "<div class='muted'>no events yet</div>"; }
-}
-
-function refreshAll() {
-  refreshStatus(); refreshRuns(); refreshIssues();
-  refreshAssets(); refreshPosts(); refreshProviders(); refreshEvents();
-}
 refreshAll();
-setInterval(refreshAll, 60000);
+setInterval(refreshAll,60000);
 </script>
 </body>
 </html>

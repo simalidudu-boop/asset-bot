@@ -15,6 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import content  # noqa: E402
+import preflight  # noqa: E402
 import post  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -60,8 +61,23 @@ def asset_link(a: dict) -> str:
     return ""
 
 
+def _heartbeat(phase: str, count: int):
+    """Write a run receipt so the dashboard can detect a stalled cron."""
+    from datetime import datetime, timezone
+    hb = STATE / "heartbeat.json"
+    try:
+        data = json.loads(hb.read_text()) if hb.exists() else {}
+    except Exception:
+        data = {}
+    data[phase] = {"at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                   "count": count,
+                   "run_id": os.environ.get("GITHUB_RUN_ID", "local")}
+    hb.write_text(json.dumps(data, indent=2))
+
+
 def main():
     print(f"[content] MOCK={MOCK} DRY={DRY} n={N} langs={LANGS}")
+    preflight.check("content")
     assets = pick_assets(N)
     if not assets:
         return
@@ -94,6 +110,7 @@ def main():
             })
             mf.write_text(json.dumps(man, indent=2))
     print(f"[content] done — {len(results)} posts attempted")
+    _heartbeat("content", len(results))
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ import traceback
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+import preflight  # noqa: E402
 import topics  # noqa: E402
 import generate_pack  # noqa: E402
 import packaging  # noqa: E402
@@ -130,6 +131,7 @@ def one_asset(item: dict, idx: int) -> dict | None:
 
 def main():
     print(f"[daily] MOCK={MOCK} DRY={DRY} free={N_FREE} paid={N_PAID}")
+    preflight.check("daily")
     picks = topics.pick_daily(n_free=N_FREE, n_paid=N_PAID)
     print(f"[daily] topics: {json.dumps(picks, indent=2)}")
     results = []
@@ -142,6 +144,16 @@ def main():
     summary.write_text(json.dumps({"date": os.popen("date -u +%Y-%m-%d").read().strip(),
                                    "results": results}, indent=2, default=str))
     print(f"\n[daily] done. {len(results)}/{len(picks)} assets. summary: {summary}")
+    from datetime import datetime, timezone
+    hb = ROOT / "state" / "heartbeat.json"
+    try:
+        data = json.loads(hb.read_text()) if hb.exists() else {}
+    except Exception:
+        data = {}
+    data["daily"] = {"at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                     "count": len(results),
+                     "run_id": os.environ.get("GITHUB_RUN_ID", "local")}
+    hb.write_text(json.dumps(data, indent=2))
 
 
 if __name__ == "__main__":

@@ -156,6 +156,125 @@ export default {
       }
     }
 
+    // ---- aggregated analytics (one call, server-side joined) ----
+    if (p === "/api/summary" && request.method === "GET") {
+      const owner = env.GH_OWNER, repo = env.GH_REPO;
+      const ghJson = async (path: string) => {
+        const r = await fetch(`https://api.github.com${path}`, {
+          headers: {
+            Authorization: `Bearer ${env.GH_TOKEN}`,
+            "User-Agent": "asset-bot-edge",
+            Accept: "application/vnd.github+json",
+          },
+        });
+        if (!r.ok) throw new Error(`gh ${path} ${r.status}`);
+        return r.json() as any;
+      };
+      const ghFile = async (fp: string) => {
+        const d = await ghJson(`/repos/${owner}/${repo}/contents/${fp}`);
+        return JSON.parse(atob(String(d.content).replace(/\s/g, "")));
+      };
+      const safe = async <T>(fn: () => Promise<T>, dflt: T): Promise<T> => {
+        try { return await fn(); } catch { return dflt; }
+      };
+
+      const [runs, manifest, heartbeat, issues, kill, dry] = await Promise.all([
+        safe(() => ghJson(`/repos/${owner}/${repo}/actions/runs?per_page=30`), { workflow_runs: [] } as any),
+        safe(() => ghFile("state/manifest.json"), { assets: [], posts: [] } as any),
+        safe(() => ghFile("state/heartbeat.json"), {} as any),
+        safe(() => ghJson(`/search/issues?q=${encodeURIComponent(`repo:${owner}/${repo} label:asset-review state:open`)}`), { items: [] } as any),
+        env.BOT_STATE.get("kill_switch"),
+        env.BOT_STATE.get("dry_run"),
+      ]);
+
+      const wr = runs.workflow_runs || [];
+      const now = Date.now();
+      const since = (iso?: string) => iso ? Math.round((now - Date.parse(iso)) / 60000) : null;
+
+      // per-workflow health
+      const byWf: Record<string, any> = {};
+      for (const r of wr) {
+        const k = r.name || r.path;
+        byWf[k] ??= { total: 0, success: 0, failure: 0, last: null, lastConclusion: null };
+        byWf[k].total++;
+        if (r.conclusion === "success") byWf[k].success++;
+        if (r.conclusion === "failure") byWf[k].failure++;
+        if (!byWf[k].last || r.created_at > byWf[k].last) {
+          byWf[k].last = r.created_at; byWf[k].lastConclusion = r.conclusion;
+        }
+      }
+      for (const k of Object.keys(byWf)) {
+        byWf[k].successRate = byWf[k].total ? Math.round(100 * byWf[k].success / byWf[k].total) : null;
+        byWf[k].ageMin = since(byWf[k].last);
+      }
+
+      // cron punctuality: compare scheduled runs to their slot
+      const contentSlots = [1, 4, 7, 10, 13, 16, 19, 22];
+      const lags: number[] = [];
+      for (const r of wr) {
+        if (r.event !== "schedule" || !/content/i.test(r.name || "")) continue;
+        const t = new Date(r.created_at);
+        let best: Date | null = null;
+        for (const h of contentSlots) {
+          const slot = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate(), h, 17, 0));
+          if (slot <= t && (!best || slot > best)) best = slot;
+        }
+        if (best) lags.push(Math.round((t.getTime() - best.getTime()) / 60000));
+      }
+      const avgLag = lags.length ? Math.round(lags.reduce((a, b) => a + b, 0) / lags.length) : null;
+
+      const assets = manifest.assets || [];
+      const posts = manifest.posts || [];
+      const fmtCount: Record<string, number> = {};
+      for (const x of posts) fmtCount[x.fmt || "?"] = (fmtCount[x.fmt || "?"] || 0) + 1;
+      const day = new Date().toISOString().slice(0, 10);
+      const postsToday = posts.filter((x: any) => (x.at || "").slice(0, 10) === day).length;
+
+      // staleness: expected a content run every 3h, daily every 24h
+      const hbContent = since(heartbeat?.content?.at);
+      const hbDaily = since(heartbeat?.daily?.at);
+      const alerts: string[] = [];
+      if (kill === "1") alerts.push("KILL SWITCH ON — all scheduled runs abort");
+      if (dry === "1") alerts.push("DRY RUN ON — nothing is published");
+      if (hbContent !== null && hbContent > 260) alerts.push(`No content run in ${Math.round(hbContent / 60)}h (expected every 3h)`);
+      if (hbDaily !== null && hbDaily > 1560) alerts.push(`No daily cycle in ${Math.round(hbDaily / 60)}h (expected every 24h)`);
+      if (hbContent === null) alerts.push("No content heartbeat recorded yet");
+      const orphaned = assets.filter((a: any) => a.status === "orphaned").length;
+      if (orphaned) alerts.push(`${orphaned} orphaned asset(s) in manifest`);
+      const noLink = assets.filter((a: any) => a.free === true && !a.page_url).length;
+      if (noLink) alerts.push(`${noLink} free asset(s) have no page_url`);
+      for (const k of Object.keys(byWf)) {
+        if (byWf[k].lastConclusion === "failure") alerts.push(`${k}: last run FAILED`);
+      }
+
+      return json({
+        ok: true,
+        generated_at: new Date().toISOString(),
+        flags: { kill: kill === "1", dry: dry === "1" },
+        alerts,
+        workflows: byWf,
+        cron: { avgLagMin: avgLag, samples: lags.length, lags },
+        assets: {
+          total: assets.length,
+          free: assets.filter((a: any) => a.free === true).length,
+          paid: assets.filter((a: any) => a.free === false && a.status !== "orphaned").length,
+          live: assets.filter((a: any) => a.status === "live").length,
+          orphaned,
+          list: assets.slice(-12).reverse(),
+        },
+        posts: {
+          total: posts.length,
+          today: postsToday,
+          formats: fmtCount,
+          list: posts.slice(-15).reverse(),
+        },
+        heartbeat: { content: heartbeat?.content ?? null, daily: heartbeat?.daily ?? null,
+                     contentAgeMin: hbContent, dailyAgeMin: hbDaily },
+        review: { open: (issues.items || []).length,
+                  items: (issues.items || []).map((i: any) => ({ number: i.number, title: i.title, url: i.html_url })) },
+      });
+    }
+
     // ---- set flags ----
     if (p === "/api/set" && request.method === "POST") {
       if (!authed(env, request)) return json({ error: "unauthorized" }, 401);
