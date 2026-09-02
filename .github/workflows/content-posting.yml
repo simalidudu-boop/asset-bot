@@ -29,12 +29,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Restore state
-        uses: actions/cache@v4
-        with:
-          path: state
-          key: bot-state-${{ hashFiles('state/*.json', 'state/*.txt') }}
-          restore-keys: bot-state-
 
       - name: Install deps
         run: pip install -q weasyprint python-docx markdown curl_cffi
