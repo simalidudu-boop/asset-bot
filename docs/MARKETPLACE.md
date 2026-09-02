@@ -128,7 +128,8 @@ existing install — the API keeps returning 403. Proof: `experience:attach`
 
 Fix: **re-install the app** at
 <https://whop.com/apps/app_aJFKUT7MnR5730/install/> and accept the new
-permission list. Verify the grant took with:
+permission list. **Confirmed: re-installing fixed it** — `experience:create`
+went from 403 to 200 with the same key. Verify the grant took with:
 
 ```bash
 curl -s -X POST -H "Authorization: Bearer $WHOP_APP_API_KEY" \
@@ -155,3 +156,31 @@ Neither works with our keys:
 - `banner_image` -> **200 OK, but silently does nothing.** Read back via REST
   and GraphQL: `bannerImage` is still `null`. A false success — always verify
   a write by reading it back.
+
+
+### FAQ experience — current state (verified 2026-09-02)
+
+After the re-install:
+
+| Action | Result |
+|---|---|
+| Create experience for **our own app** (`app_aJFKUT7MnR5730`) | **200** — `exp_1tNTRzWvwTusVz` |
+| Attach it to both products | **200**, persisted (`publicAccessPass.experiences` shows it) |
+| Create experience for the **third-party FAQs app** (`app_PsBytos2S7vFcG`) | **400** `app_authorization:create` |
+| `PATCH /experiences/{id}` | **403** `experience:update` |
+
+So `ensure_faq_experience()` now defaults to **our own app**, which is fully
+automatable, and is idempotent (matches on app id + name, reuses rather than
+duplicating).
+
+**Important limitation:** our app has `hosted_url: null` and
+`status: hidden`, so its experience tab currently renders **nothing**. The tab
+exists on the product but is an empty shell until either:
+
+1. the app gets a `hosted_url` serving a FAQ page (we already have a Cloudflare
+   Worker that could serve it), or
+2. the **FAQs app is added from the dashboard** (product -> Add app -> FAQs) and
+   the questions typed in its UI.
+
+Option 2 is the fast path today. Option 1 makes FAQs fully hands-off and is the
+only route that avoids `app_authorization:create` entirely.

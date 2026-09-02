@@ -28,6 +28,8 @@ submitted" short-circuit cannot rely on a fetch; callers should pass
 """
 from __future__ import annotations
 
+import os
+
 import whop_client as whop
 
 # Fields Whop requires on the product itself.
@@ -140,12 +142,18 @@ def publish(product_id: str, company_id: str | None = None,
 # in the entire 3MB OpenAPI spec, no faq input in the GraphQL schema). FAQs
 # are delivered as an *experience* — an app attached to the product.
 #
-# Whop's first-party FAQs app:
+# Whop's first-party FAQs app. Installing a THIRD-PARTY app via the API needs
+# `app_authorization:create`, which a company/app key does not get — so this
+# one must be added from the dashboard (product -> Add app -> FAQs).
 FAQ_APP_ID = "app_PsBytos2S7vFcG"
+
+# Our own app. `experience:create` covers creating experiences for THIS app,
+# so this path is fully automatable. It renders whatever our app hosts.
+OWN_APP_ID = os.environ.get("WHOP_APP_ID", "app_aJFKUT7MnR5730")
 
 
 def ensure_faq_experience(product_id: str, company_id: str,
-                          app_id: str = FAQ_APP_ID,
+                          app_id: str | None = None,
                           name: str = "FAQ") -> dict:
     """Create the FAQ experience once, then attach it to `product_id`.
 
@@ -154,6 +162,7 @@ def ensure_faq_experience(product_id: str, company_id: str,
     the FAQs app has no public write API, so the questions themselves are still
     entered in the app UI. The generated copy is printed by faq_report().
     """
+    app_id = app_id or OWN_APP_ID
     out = {"product_id": product_id, "app_id": app_id}
     try:
         existing = (whop._request(
@@ -166,7 +175,9 @@ def ensure_faq_experience(product_id: str, company_id: str,
         a = e.get("app")
         return a.get("id") if isinstance(a, dict) else e.get("app_id")
 
-    exp = next((e for e in existing if _app_of(e) == app_id), None)
+    # match on app AND name so our app can own more than one experience
+    exp = next((e for e in existing
+                if _app_of(e) == app_id and (e.get("name") or "") == name), None)
 
     if exp is None:
         try:
