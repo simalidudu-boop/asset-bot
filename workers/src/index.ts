@@ -194,6 +194,9 @@ export default {
       // per-workflow health
       const byWf: Record<string, any> = {};
       for (const r of wr) {
+        // ignore ghost entries from pushes that failed YAML validation —
+        // they are named ".github/workflows/x.yml" and no longer exist
+        if ((r.name || "").startsWith(".github/")) continue;
         const k = r.name || r.path;
         byWf[k] ??= { total: 0, success: 0, failure: 0, last: null, lastConclusion: null };
         byWf[k].total++;
