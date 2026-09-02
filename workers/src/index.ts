@@ -22,6 +22,17 @@ export interface Env {
   AI: any;
 }
 
+const CONFIG_DEFAULTS: Record<string, string | number | boolean> = {
+  N_FREE: 1,          // free assets per daily cycle
+  N_PAID: 2,          // paid assets per daily cycle
+  N_POSTS: 1,         // content pieces per content run
+  POST_LANGS: "en",   // comma-separated language codes
+  N_IMAGES: 2,        // promo images per asset
+  MAKE_VIDEO: true,   // build slideshow videos
+  ENABLE_POST_MEDIA: true,  // attach an image to image/video posts
+  PREFLIGHT_STRICT: true,   // fail runs on fatal misconfiguration
+};
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -250,6 +261,28 @@ export default {
         if (byWf[k].lastConclusion === "failure") alerts.push(`${k}: last run FAILED`);
       }
 
+      // append a daily rollup point (idempotent per UTC day) for the charts
+      try {
+        const hraw = await env.BOT_STATE.get("history");
+        const hist: any[] = hraw ? JSON.parse(hraw) : [];
+        const today = new Date().toISOString().slice(0, 10);
+        const point = {
+          d: today,
+          posts: posts.length,
+          postsToday,
+          assets: assets.length,
+          live: assets.filter((a: any) => a.status === "live").length,
+          orphaned,
+          lag: avgLag,
+          runsOk: wr.filter((r: any) => r.conclusion === "success").length,
+          runsFail: wr.filter((r: any) => r.conclusion === "failure").length,
+        };
+        const i = hist.findIndex((x) => x.d === today);
+        if (i >= 0) hist[i] = point; else hist.push(point);
+        while (hist.length > 60) hist.shift();
+        await env.BOT_STATE.put("history", JSON.stringify(hist));
+      } catch { /* charts are best-effort */ }
+
       return json({
         ok: true,
         generated_at: new Date().toISOString(),
@@ -276,6 +309,59 @@ export default {
         review: { open: (issues.items || []).length,
                   items: (issues.items || []).map((i: any) => ({ number: i.number, title: i.title, url: i.html_url })) },
       });
+    }
+
+    // ---- maintenance: purge orphaned manifest entries ----
+    if (p === "/api/purge-orphans" && request.method === "POST") {
+      if (!authed(env, request)) return json({ error: "unauthorized" }, 401);
+      try {
+        const path = `/repos/${env.GH_OWNER}/${env.GH_REPO}/contents/state/manifest.json`;
+        const cur = await gh(env, "GET", path);
+        const manifest = JSON.parse(atob(String(cur.content).replace(/\s/g, "")));
+        const before = (manifest.assets || []).length;
+        const kept = (manifest.assets || []).filter((a: any) => a.status !== "orphaned");
+        const removedSlugs = (manifest.assets || [])
+          .filter((a: any) => a.status === "orphaned").map((a: any) => a.slug);
+        if (!removedSlugs.length) return json({ ok: true, removed: 0, message: "no orphans" });
+        manifest.assets = kept;
+        // keep posts, but drop ones pointing at removed assets
+        manifest.posts = (manifest.posts || []).filter((x: any) => !removedSlugs.includes(x.asset));
+        const body = btoa(unescape(encodeURIComponent(JSON.stringify(manifest, null, 2))));
+        await gh(env, "PUT", path, {
+          message: `chore: purge ${removedSlugs.length} orphaned asset(s) via Command Center`,
+          content: body, sha: cur.sha,
+        });
+        return json({ ok: true, removed: removedSlugs.length, slugs: removedSlugs,
+                      assetsBefore: before, assetsAfter: kept.length });
+      } catch (e) {
+        return json({ ok: false, error: String(e) }, 500);
+      }
+    }
+
+    // ---- settings / config (read + write env knobs stored in KV) ----
+    if (p === "/api/config" && request.method === "GET") {
+      const raw = await env.BOT_STATE.get("config");
+      const cfg = raw ? JSON.parse(raw) : {};
+      return json({ ok: true, config: { ...CONFIG_DEFAULTS, ...cfg }, defaults: CONFIG_DEFAULTS });
+    }
+    if (p === "/api/config" && request.method === "POST") {
+      if (!authed(env, request)) return json({ error: "unauthorized" }, 401);
+      const incoming = (await request.json()) as Record<string, unknown>;
+      const clean: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(incoming)) {
+        if (!(k in CONFIG_DEFAULTS)) continue;
+        clean[k] = v;
+      }
+      const raw = await env.BOT_STATE.get("config");
+      const merged = { ...(raw ? JSON.parse(raw) : {}), ...clean };
+      await env.BOT_STATE.put("config", JSON.stringify(merged));
+      return json({ ok: true, config: { ...CONFIG_DEFAULTS, ...merged } });
+    }
+
+    // ---- history: append-only daily rollup for charts ----
+    if (p === "/api/history" && request.method === "GET") {
+      const raw = await env.BOT_STATE.get("history");
+      return json({ ok: true, history: raw ? JSON.parse(raw) : [] });
     }
 
     // ---- set flags ----

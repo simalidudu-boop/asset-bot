@@ -11,6 +11,7 @@ Usage: python3 engine/run_content.py [--mock] [--dry-run] [--n 3]
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -61,6 +62,43 @@ def asset_link(a: dict) -> str:
     return ""
 
 
+
+def attach_media(piece: dict, slug: str) -> str | None:
+    """Generate + host a promo image for image/video pieces.
+
+    Whop forum posts render a bare image URL as an embed, so hosting the file
+    on GitHub Releases (our free CDN) and appending the URL is enough — no
+    direct_upload handshake required.
+
+    Returns the public URL, or None when media is unavailable/not wanted.
+    Never raises: a missing image must not lose the post.
+    """
+    if os.environ.get("ENABLE_POST_MEDIA", "1") not in ("1", "true", "True"):
+        return None
+    if piece.get("fmt") not in ("image", "video"):
+        return None
+    if MOCK or DRY:
+        print(f"[content] media skipped (mock/dry) for fmt={piece.get('fmt')}")
+        return None
+    prompt = (piece.get("image_prompt") or "").strip()
+    if not prompt:
+        prompt = f"Square promo graphic for '{piece.get('title', slug)}'. " \
+                 "Modern SaaS style, bold type, dark background, one accent colour."
+    try:
+        import media  # local import: heavy deps only when actually needed
+        import hosting
+        from pathlib import Path as _P
+        name = f"post-{slug}-{int(time.time())}"
+        img = media.gen_image(prompt, name)
+        url = hosting.upload_images(slug, [_P(str(img))])
+        if url:
+            print(f"[content] media hosted: {url[0]}")
+            return url[0]
+    except Exception as e:
+        print(f"[content] media generation failed ({e}) — posting text-only")
+    return None
+
+
 def _heartbeat(phase: str, count: int):
     """Write a run receipt so the dashboard can detect a stalled cron."""
     from datetime import datetime, timezone
@@ -99,7 +137,8 @@ def main():
                                      start_index=fmt_idx)
         fmt_ptr.write_text(str((fmt_idx + 1) % len(content.FORMATS)))
         for p in pieces:
-            results.append(post.post_piece(p))
+            media_url = attach_media(p, a["slug"])
+            results.append(post.post_piece(p, media_url=media_url))
             # persist what we posted (for dedupe/tracking)
             mf = STATE / "manifest.json"
             man = json.loads(mf.read_text())

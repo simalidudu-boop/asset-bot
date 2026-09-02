@@ -79,6 +79,21 @@
   .spark i{flex:1;background:var(--accent);border-radius:1px;min-height:2px;opacity:.75}
   .spark i.late{background:var(--warn)}
   .spark i.vlate{background:var(--bad)}
+  nav.tabs{display:flex;gap:6px;padding:10px 20px 0;background:var(--panel);
+           border-bottom:1px solid var(--line);position:sticky;top:52px;z-index:19}
+  .tab{background:transparent;border:1px solid transparent;border-bottom:none;
+       border-radius:8px 8px 0 0;padding:9px 15px;color:var(--muted)}
+  .tab.active{background:var(--bg);border-color:var(--line);color:var(--fg)}
+  .cfg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+  .cfg{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px}
+  .cfg label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+  .cfg input[type=text],.cfg input[type=number]{width:100%;background:var(--bg);
+       border:1px solid var(--line);border-radius:6px;color:var(--fg);padding:7px 9px;font-size:13px}
+  .cfg .hint{font-size:11px;color:var(--muted);margin-top:5px}
+  .barrow{display:flex;align-items:center;gap:9px;margin-bottom:8px;font-size:12.5px}
+  .barrow .lbl{width:78px;color:var(--muted)}
+  .barrow .track{flex:1;height:16px;background:var(--panel2);border-radius:4px;overflow:hidden}
+  .barrow .track>i{display:block;height:100%}
 </style>
 </head>
 <body>
@@ -93,7 +108,13 @@
   </div>
 </header>
 
-<main>
+<nav class="tabs">
+  <button class="tab active" data-tab="ops" onclick="showTab('ops')">📊 Operations</button>
+  <button class="tab" data-tab="charts" onclick="showTab('charts')">📈 Analytics</button>
+  <button class="tab" data-tab="settings" onclick="showTab('settings')">⚙️ Settings</button>
+</nav>
+
+<main id="tab-ops">
   <!-- ALERTS -->
   <div class="card wide">
     <h2>🚨 Alerts <span class="badge" id="alert-n">0</span></h2>
@@ -167,6 +188,83 @@
   <div class="card">
     <h2>🏃 Recent runs</h2>
     <div class="body" id="runs"><div class="muted">loading…</div></div>
+  </div>
+</main>
+
+<main id="tab-charts" style="display:none">
+  <div class="card wide">
+    <h2>📈 Output over time <span class="badge" id="chart-range">—</span></h2>
+    <div class="body">
+      <div class="muted" style="margin-bottom:10px">Cumulative posts and live assets per day. Populated from daily rollups in KV.</div>
+      <svg id="chart-output" viewBox="0 0 800 240" preserveAspectRatio="none" style="width:100%;height:240px"></svg>
+      <div class="row" style="margin-top:8px;font-size:12px">
+        <span style="color:var(--accent)">■ posts (cumulative)</span>
+        <span style="color:var(--free)">■ live assets</span>
+        <span style="color:var(--bad)">■ orphaned</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card wide">
+    <h2>⏱ Cron lag trend <span class="badge" id="chart-lag">—</span></h2>
+    <div class="body">
+      <div class="muted" style="margin-bottom:10px">Average minutes late per day. Green &lt;30m · amber &lt;90m · red ≥90m. Sustained red → move timing to Worker cron (README §4.1).</div>
+      <svg id="chart-lagsvg" viewBox="0 0 800 200" preserveAspectRatio="none" style="width:100%;height:200px"></svg>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🥧 Post formats</h2>
+    <div class="body"><div id="fmt-bars"></div></div>
+  </div>
+
+  <div class="card">
+    <h2>✅ Run reliability</h2>
+    <div class="body"><div id="rel-bars"></div></div>
+  </div>
+</main>
+
+<main id="tab-settings" style="display:none">
+  <div class="card wide">
+    <h2>⚙️ Pipeline configuration</h2>
+    <div class="body">
+      <div class="muted" style="margin-bottom:12px">
+        Stored in Cloudflare KV and read by workflows at run time. Changes apply to the
+        <b>next</b> run — they do not affect a run already in flight.
+      </div>
+      <div id="cfg-form" class="cfg-grid"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="go" onclick="saveConfig()">💾 Save configuration</button>
+        <button onclick="loadConfig()">↩ Reload</button>
+        <button class="danger" onclick="resetConfig()">⟲ Restore defaults</button>
+        <span class="muted" id="cfg-status"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card wide">
+    <h2>🧹 Maintenance</h2>
+    <div class="body">
+      <div class="item">
+        <b>Orphaned assets</b>
+        <div class="muted" style="margin:4px 0 8px">
+          Manifest entries whose Whop product was never created (a generation run died
+          before publish). They are already excluded from promotion, so they cost you
+          nothing — purging just clears the alert and tidies the ledger.
+        </div>
+        <div class="row">
+          <span class="tag orphaned" id="orph-count">0 orphaned</span>
+          <button class="danger" onclick="purgeOrphans()">🧹 Purge orphaned entries</button>
+        </div>
+      </div>
+      <div class="item">
+        <b>Health endpoints</b>
+        <div class="muted" style="margin-top:4px">
+          <code>/api/summary</code> aggregate · <code>/api/history</code> chart data ·
+          <code>/api/config</code> these settings · <code>/api/status</code> flags
+        </div>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -331,6 +429,132 @@ async function loadRuns(){
     if(latest)document.getElementById("d-lastrun").textContent=
       `LAST ${new Date(latest.created_at).toLocaleTimeString()} ${latest.conclusion||latest.status}`;
   }catch(e){document.getElementById("runs").innerHTML=`<div class="muted">error ${esc(e)}</div>`;}
+}
+
+// ---------- tabs ----------
+function showTab(t){
+  for(const id of ["ops","charts","settings"]){
+    document.getElementById("tab-"+id).style.display = (id===t) ? "grid" : "none";
+  }
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===t));
+  if(t==="charts") loadCharts();
+  if(t==="settings") loadConfig();
+}
+
+// ---------- charts (hand-rolled SVG: no CDN, works in sandboxed preview) ----------
+function polyline(pts,color,w=2){
+  return `<polyline fill="none" stroke="${color}" stroke-width="${w}" points="${pts}"/>`;
+}
+function drawOutput(hist){
+  const svg=document.getElementById("chart-output");
+  if(!hist.length){svg.innerHTML='<text x="20" y="30" fill="#8b95a5" font-size="13">No history yet — data appears after the dashboard has run for a day.</text>';return;}
+  const W=800,H=240,pad=34;
+  const maxY=Math.max(1,...hist.map(h=>Math.max(h.posts||0,h.live||0,h.orphaned||0)));
+  const X=i=>pad+(i*(W-pad*2))/Math.max(1,hist.length-1);
+  const Y=v=>H-pad-((v/maxY)*(H-pad*2));
+  const mk=k=>hist.map((h,i)=>`${X(i)},${Y(h[k]||0)}`).join(" ");
+  let g="";
+  for(let i=0;i<=4;i++){const y=pad+i*(H-pad*2)/4;
+    g+=`<line x1="${pad}" y1="${y}" x2="${W-pad}" y2="${y}" stroke="#242a36"/>`
+     + `<text x="4" y="${y+4}" fill="#8b95a5" font-size="10">${Math.round(maxY-(i*maxY/4))}</text>`;}
+  const lbl=hist.map((h,i)=> (i%Math.ceil(hist.length/6)===0)
+    ? `<text x="${X(i)}" y="${H-8}" fill="#8b95a5" font-size="10" text-anchor="middle">${h.d.slice(5)}</text>`:"").join("");
+  svg.innerHTML=g+lbl+polyline(mk("posts"),"#60a5fa")+polyline(mk("live"),"#34d399")+polyline(mk("orphaned"),"#f87171")
+    +hist.map((h,i)=>`<circle cx="${X(i)}" cy="${Y(h.posts||0)}" r="3" fill="#60a5fa"><title>${h.d}: ${h.posts} posts</title></circle>`).join("");
+  document.getElementById("chart-range").textContent=`${hist.length} day${hist.length>1?"s":""}`;
+}
+function drawLag(hist){
+  const svg=document.getElementById("chart-lagsvg");
+  const pts=hist.filter(h=>h.lag!=null);
+  if(!pts.length){svg.innerHTML='<text x="20" y="30" fill="#8b95a5" font-size="13">No cron lag samples yet.</text>';return;}
+  const W=800,H=200,pad=32,bw=Math.min(56,(W-pad*2)/pts.length-6);
+  const maxY=Math.max(60,...pts.map(h=>h.lag));
+  let out=`<line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="#242a36"/>`;
+  out+=`<line x1="${pad}" y1="${H-pad-((30/maxY)*(H-pad*2))}" x2="${W-pad}" y2="${H-pad-((30/maxY)*(H-pad*2))}" stroke="#fbbf24" stroke-dasharray="4 4" opacity=".5"/>`;
+  pts.forEach((h,i)=>{
+    const x=pad+i*((W-pad*2)/pts.length)+4, hh=(h.lag/maxY)*(H-pad*2);
+    const c=h.lag>=90?"#f87171":h.lag>=30?"#fbbf24":"#34d399";
+    out+=`<rect x="${x}" y="${H-pad-hh}" width="${bw}" height="${hh}" fill="${c}" rx="3"><title>${h.d}: ${h.lag} min late</title></rect>`
+       + `<text x="${x+bw/2}" y="${H-pad+13}" fill="#8b95a5" font-size="10" text-anchor="middle">${h.d.slice(5)}</text>`
+       + `<text x="${x+bw/2}" y="${H-pad-hh-5}" fill="${c}" font-size="10" text-anchor="middle">${h.lag}</text>`;});
+  svg.innerHTML=out;
+  const avg=Math.round(pts.reduce((a,b)=>a+b.lag,0)/pts.length);
+  document.getElementById("chart-lag").textContent=`avg ${avg}m`;
+}
+async function loadCharts(){
+  try{
+    const h=(await (await fetch(WORKER+"/api/history")).json()).history||[];
+    drawOutput(h); drawLag(h);
+    const s=await wfetch("/api/summary");
+    const F=s.posts.formats||{}, tot=Object.values(F).reduce((a,b)=>a+b,0)||1;
+    const cols={text:"#60a5fa",image:"#a78bfa",video:"#f472b6",question:"#34d399"};
+    document.getElementById("fmt-bars").innerHTML=Object.entries(F).map(([k,v])=>
+      `<div class="barrow"><span class="lbl">${esc(k)}</span>
+        <span class="track"><i style="width:${(v/tot*100).toFixed(1)}%;background:${cols[k]||"#8b95a5"}"></i></span>
+        <b>${v}</b></div>`).join("")||'<div class="muted">no posts</div>';
+    document.getElementById("rel-bars").innerHTML=Object.entries(s.workflows).map(([k,v])=>
+      `<div class="barrow"><span class="lbl" title="${esc(k)}">${esc(k.slice(0,11))}</span>
+        <span class="track"><i style="width:${v.successRate}%;background:${v.successRate>80?"#34d399":v.successRate>50?"#fbbf24":"#f87171"}"></i></span>
+        <b>${v.successRate}%</b></div>`).join("");
+  }catch(e){toast("charts failed: "+e);}
+}
+
+// ---------- settings ----------
+const CFG_HINTS={
+  N_FREE:"Free assets generated per daily cycle. These publish automatically.",
+  N_PAID:"Paid assets per daily cycle. Each waits for your approval.",
+  N_POSTS:"Content pieces generated per content run (8 runs/day).",
+  POST_LANGS:"Comma-separated language codes, e.g. en,fr,es",
+  N_IMAGES:"Promo images generated per asset.",
+  MAKE_VIDEO:"Build an ffmpeg slideshow video per asset.",
+  ENABLE_POST_MEDIA:"Attach a generated image to image/video forum posts.",
+  PREFLIGHT_STRICT:"Fail a run on fatal misconfiguration instead of degrading silently. Keep ON.",
+};
+let CFG={};
+async function loadConfig(){
+  try{
+    const r=await (await fetch(WORKER+"/api/config")).json();
+    CFG=r.config;
+    document.getElementById("cfg-form").innerHTML=Object.entries(CFG).map(([k,v])=>{
+      const inp = typeof v==="boolean"
+        ? `<label class="row" style="gap:7px"><input type="checkbox" id="cfg-${k}" ${v?"checked":""}> <span>${v?"enabled":"disabled"}</span></label>`
+        : typeof v==="number"
+          ? `<input type="number" id="cfg-${k}" value="${v}" min="0" max="50">`
+          : `<input type="text" id="cfg-${k}" value="${esc(v)}">`;
+      return `<div class="cfg"><label>${k}</label>${inp}<div class="hint">${esc(CFG_HINTS[k]||"")}</div></div>`;
+    }).join("");
+    const s=await wfetch("/api/summary");
+    document.getElementById("orph-count").textContent=`${s.assets.orphaned} orphaned`;
+  }catch(e){toast("config load failed: "+e);}
+}
+async function saveConfig(){
+  if(!needToken())return;
+  const out={};
+  for(const [k,v] of Object.entries(CFG)){
+    const el=document.getElementById("cfg-"+k); if(!el)continue;
+    out[k] = typeof v==="boolean" ? el.checked : typeof v==="number" ? Number(el.value) : el.value;
+  }
+  const r=await wfetch("/api/config",{method:"POST",
+    headers:{"Content-Type":"application/json","X-Bot-Token":token()},body:JSON.stringify(out)});
+  if(r.ok){document.getElementById("cfg-status").textContent="saved "+new Date().toLocaleTimeString();
+           toast("configuration saved");CFG=r.config;loadConfig();}
+  else toast("save failed: "+(r.error||""));
+}
+async function resetConfig(){
+  if(!confirm("Restore all settings to defaults?"))return;
+  const r=await (await fetch(WORKER+"/api/config")).json();
+  for(const [k,v] of Object.entries(r.defaults)){
+    const el=document.getElementById("cfg-"+k); if(!el)continue;
+    if(typeof v==="boolean")el.checked=v; else el.value=v;
+  }
+  toast("defaults restored — press Save to apply");
+}
+async function purgeOrphans(){
+  if(!needToken())return;
+  if(!confirm("Remove orphaned entries from the manifest? This commits to the repo. Safe: they are already excluded from promotion."))return;
+  const r=await wfetch("/api/purge-orphans",{method:"POST",headers:{"X-Bot-Token":token()}});
+  if(r.ok){toast(r.removed?`purged ${r.removed} orphan(s)`:"no orphans to purge");refreshAll();loadConfig();}
+  else toast("purge failed: "+(r.error||""));
 }
 
 refreshAll();

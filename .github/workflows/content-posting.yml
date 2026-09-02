@@ -59,6 +59,15 @@ jobs:
           POST_STAGGER_SEC: "0"
         run: |
           DRY_RUN=0; MOCK=0; export DRY_RUN MOCK
+          # pull live config from the Command Center (KV) — Settings tab
+          C=$(curl -sf "$EDGE_URL/api/config" || echo '{}')
+          for k in N_POSTS POST_LANGS ENABLE_POST_MEDIA PREFLIGHT_STRICT; do
+            v=$(echo "$C" | python3 -c "import json,sys;print(json.load(sys.stdin).get('config',{}).get('$k',''))" 2>/dev/null)
+            if [ -n "$v" ]; then
+              case "$v" in True) v=1;; False) v=0;; esac
+              export "$k=$v"; echo "config: $k=$v"
+            fi
+          done
           S=$(curl -sf "$EDGE_URL/api/status" || echo '{}')
           K=$(echo "$S" | python3 -c "import json,sys;print('1' if json.load(sys.stdin).get('kill') else '0')" 2>/dev/null || echo 0)
           if [ "$K" = "1" ]; then echo "KILL SWITCH ON — aborting run"; exit 0; fi
