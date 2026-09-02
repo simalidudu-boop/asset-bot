@@ -115,7 +115,9 @@ def one_asset(item: dict, idx: int) -> dict | None:
             price=res.get("price"),
             product_id=res.get("product_id"),
             status=res.get("status", "staged"),
-            extra={"video_url": video_url})
+            extra={"video_url": video_url,
+                   "cover_status": res.get("cover_status"),
+                   "gallery_images": res.get("gallery_images") or []})
         if res.get("page_url"):
             mf = ROOT / "state" / "manifest.json"
             man = json.loads(mf.read_text())

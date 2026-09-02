@@ -105,12 +105,41 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
               "files": file_urls, "price": price}
 
     if image_urls:
-        try:
-            whop._request("PATCH", f"/products/{product_id}",
-                          {"gallery_images": [{"url": u} for u in image_urls]})
-            print(f"[publish] gallery images set on {product_id}")
-        except Exception as e:
-            print(f"[publish] gallery_images PATCH unsupported ({e}) — continuing")
+        # Whop will NOT accept an external image URL here: gallery_images.url
+        # must be a media.whop.com URL produced by their attachment upload API
+        # (POST /api/v2/attachments or the mediaDirectUpload GraphQL mutation).
+        # Both require an *App* API key; the company REST key used by this bot
+        # gets 401 on those routes. So we attempt the upload, and when it is
+        # not permitted we record the images as a pending cover on the asset so
+        # the dashboard can surface them for a one-off manual attach instead of
+        # silently dropping them (the old behaviour).
+        result["gallery_images"] = image_urls
+        uploaded = []
+        for u in image_urls:
+            try:
+                att = whop._request("POST", "/attachments",
+                                    {"url": u, "record": "product"}, api="v2")
+                mid = att.get("id") or att.get("directUploadId")
+                if mid:
+                    uploaded.append(mid)
+            except Exception as e:
+                print(f"[publish] attachment upload unavailable ({e})")
+                break
+
+        if uploaded:
+            try:
+                whop._request("PATCH", f"/products/{product_id}",
+                              {"gallery_images": [{"id": i} for i in uploaded]})
+                result["cover_status"] = "set"
+                print(f"[publish] gallery images set on {product_id}")
+            except Exception as e:
+                result["cover_status"] = "pending_manual"
+                print(f"[publish] gallery PATCH rejected ({e})")
+        else:
+            result["cover_status"] = "pending_manual"
+            print(f"[publish] cover image pending manual attach for "
+                  f"{product_id} ({len(image_urls)} image(s) hosted): "
+                  f"{image_urls[0]}")
 
     if price == 0.0:
         plan = whop.create_plan(product_id=product_id, initial_price=0.0)

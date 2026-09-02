@@ -10,7 +10,9 @@
       "free": true,
       "price": 0.0,
       "product_id": "prod_3rUWWBYz3FsuL",
-      "status": "live"
+      "status": "live",
+      "cover_status": "pending_manual",
+      "gallery_images": []
     },
     {
       "slug": "zero-click-content-machine-2",
@@ -71,7 +73,9 @@
       "free": false,
       "price": 11.0,
       "product_id": "prod_F080AA8beZEie",
-      "status": "live"
+      "status": "live",
+      "cover_status": "pending_manual",
+      "gallery_images": []
     }
   ],
   "posts": [

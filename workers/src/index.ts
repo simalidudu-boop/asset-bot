@@ -81,7 +81,16 @@ export default {
       const bust = url.searchParams.has("v") || url.searchParams.has("nocache");
       if (!bust) {
         const cached = await cache.match(cacheKey);
-        if (cached) return cached;
+        if (cached) {
+          const body = await cached.text();
+          return new Response(body, {
+            headers: {
+              "content-type": "text/html; charset=utf-8",
+              "cache-control": "no-store, must-revalidate",
+              "x-dashboard-ref": cached.headers.get("x-dashboard-ref") ?? "cache",
+            },
+          });
+        }
       }
       try {
         // pin to the current commit so a push invalidates immediately
@@ -94,15 +103,26 @@ export default {
         const r = await fetch(raw, { cf: { cacheTtl: 30 } });
         if (!r.ok) throw new Error(`raw ${r.status}`);
         const html = await r.text();
-        const resp = new Response(html, {
+        // Two different cache policies on purpose:
+        //  - the EDGE copy may live 60s (cheap, shared)
+        //  - the BROWSER must always revalidate, otherwise a user who loaded
+        //    the pre-tabs build keeps it forever (the original response had no
+        //    Cache-Control at all, so browsers cached it heuristically).
+        const edgeResp = new Response(html, {
           headers: {
             "content-type": "text/html; charset=utf-8",
             "cache-control": "public, max-age=60",
             "x-dashboard-ref": ref.slice(0, 7),
           },
         });
-        await cache.put(cacheKey, resp.clone());
-        return resp;
+        await cache.put(cacheKey, edgeResp.clone());
+        return new Response(html, {
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store, must-revalidate",
+            "x-dashboard-ref": ref.slice(0, 7),
+          },
+        });
       } catch (e) {
         return json({ ok: true, service: "asset-bot-edge",
                       dashboard: "fetch failed — dashboard may not be pushed yet",
@@ -273,6 +293,11 @@ export default {
       if (hbContent === null) alerts.push("No content heartbeat recorded yet");
       const orphaned = assets.filter((a: any) => a.status === "orphaned").length;
       if (orphaned) alerts.push(`${orphaned} orphaned asset(s) in manifest`);
+      const noCover = assets.filter((a: any) =>
+        a.product_id && a.cover_status === "pending_manual").length;
+      if (noCover) alerts.push(
+        `${noCover} live product(s) have no cover image — Whop attachment upload ` +
+        `needs an App API key; attach manually in the Whop dashboard`);
       const noLink = assets.filter((a: any) => a.free === true && !a.page_url).length;
       if (noLink) alerts.push(`${noLink} free asset(s) have no page_url`);
       for (const k of Object.keys(byWf)) {

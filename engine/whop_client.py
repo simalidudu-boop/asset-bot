@@ -6,6 +6,7 @@ Base URLs:  prod    https://api.whop.com/api/v1
 Auth: Bearer key. Rate limit: 600 req/min per operation per credential.
 """
 import json
+import re
 import os
 import time
 import urllib.request
@@ -22,8 +23,12 @@ class WhopError(Exception):
 
 
 def _request(method: str, path: str, payload: dict | None = None,
-             retries: int = 3):
-    url = f"{BASE}{path}"
+             retries: int = 3, api: str | None = None):
+    base = BASE
+    if api:
+        # allow callers to target a different API version (e.g. v2 attachments)
+        base = re.sub(r"/api/v\d+$", f"/api/{api}", BASE)
+    url = f"{base}{path}"
     key = os.environ.get("WHOP_API_KEY")
     if not key:
         raise RuntimeError("WHOP_API_KEY not set")
