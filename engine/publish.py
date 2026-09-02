@@ -20,7 +20,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import whop_client as whop
-import whop_media  # noqa: E402
+import whop_media
+import marketplace  # noqa: E402
 import review  # noqa: E402
 
 DRY = os.environ.get("DRY_RUN") == "1" or "--dry-run" in sys.argv
@@ -118,6 +119,15 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
             print(f"[publish] cover pending ({cover.get('reason')}) — "
                   f"{len(image_urls)} image(s) hosted: {image_urls[0]}")
 
+    # Visible != discoverable. Submit to the whop.com marketplace so the
+    # product appears on Discover, not just via direct link. Free products
+    # are visible immediately; paid ones are hidden until /approve, so only
+    # submit the ones that are actually visible.
+    if price == 0.0:
+        listing = marketplace.publish(product_id, COMPANY_ID)
+        result["marketplace_status"] = listing.get("marketplace_status")
+        result["marketplace_missing"] = listing.get("missing")
+
     if price == 0.0:
         plan = whop.create_plan(product_id=product_id, initial_price=0.0)
         result["plan_id"] = plan.get("id")
@@ -134,4 +144,9 @@ def approve(product_id: str, price: float, metadata: dict | None = None) -> dict
     """Called by approve_from_issue.py on /approve."""
     plan = whop.create_plan(product_id=product_id, initial_price=price)
     upd = update_product(product_id, visibility="visible")
-    return {"plan_id": plan.get("id"), "update": upd}
+    # Now that it has a visible plan and is visible, it qualifies for the
+    # marketplace — submit it so approved paid products are discoverable too.
+    listing = marketplace.publish(product_id, COMPANY_ID)
+    return {"plan_id": plan.get("id"), "update": upd,
+            "marketplace_status": listing.get("marketplace_status"),
+            "marketplace_missing": listing.get("missing")}

@@ -293,6 +293,13 @@ export default {
       if (hbContent === null) alerts.push("No content heartbeat recorded yet");
       const orphaned = assets.filter((a: any) => a.status === "orphaned").length;
       if (orphaned) alerts.push(`${orphaned} orphaned asset(s) in manifest`);
+      const notListed = assets.filter((a: any) =>
+        a.product_id && a.marketplace_status &&
+        a.marketplace_status !== "live_marketplace" &&
+        a.marketplace_status !== "pending_review").length;
+      if (notListed) alerts.push(
+        `${notListed} live product(s) not submitted to the Whop marketplace ` +
+        `— they are reachable by link but will not appear on Discover`);
       const noCover = assets.filter((a: any) =>
         a.product_id && a.cover_status === "pending_manual").length;
       if (noCover) alerts.push(

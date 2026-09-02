@@ -12,7 +12,8 @@
       "product_id": "prod_3rUWWBYz3FsuL",
       "status": "live",
       "cover_status": "set",
-      "gallery_images": []
+      "gallery_images": [],
+      "marketplace_status": "pending_review"
     },
     {
       "slug": "zero-click-content-machine-2",
@@ -75,7 +76,8 @@
       "product_id": "prod_F080AA8beZEie",
       "status": "live",
       "cover_status": "set",
-      "gallery_images": []
+      "gallery_images": [],
+      "marketplace_status": "pending_review"
     },
     {
       "slug": "zero-click-content-machine-6",
