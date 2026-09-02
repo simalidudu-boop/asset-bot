@@ -102,7 +102,9 @@ export default {
         const raw = `https://raw.githubusercontent.com/${env.GH_OWNER}/${env.GH_REPO}/${ref}/dashboard/index.html`;
         const r = await fetch(raw, { cf: { cacheTtl: 30 } });
         if (!r.ok) throw new Error(`raw ${r.status}`);
-        const html = await r.text();
+        // Stamp the served commit into the page so the build is visible
+        // on screen — no need to open devtools to check for staleness.
+        const html = (await r.text()).replace(/__BUILD__/g, ref.slice(0, 7));
         // Two different cache policies on purpose:
         //  - the EDGE copy may live 60s (cheap, shared)
         //  - the BROWSER must always revalidate, otherwise a user who loaded
