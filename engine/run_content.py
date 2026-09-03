@@ -117,6 +117,17 @@ def attach_media(piece: dict, slug: str) -> str | None:
     return None
 
 
+def _drain_distribution():
+    """Drain the distribution queue. Runs on the 3-hourly content cadence."""
+    try:
+        import dist_core
+        import dist_channels  # noqa: F401
+        return dist_core.drain()
+    except Exception as e:  # noqa: BLE001
+        print(f"[dist] drain skipped: {e}")
+        return {}
+
+
 def _heartbeat(phase: str, count: int):
     """Write a run receipt so the dashboard can detect a stalled cron."""
     from datetime import datetime, timezone
@@ -167,6 +178,7 @@ def main():
             })
             mf.write_text(json.dumps(man, indent=2))
     print(f"[content] done — {len(results)} posts attempted")
+    _drain_distribution()
     _heartbeat("content", len(results))
 
 

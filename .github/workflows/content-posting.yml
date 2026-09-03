@@ -55,6 +55,30 @@ jobs:
         if: steps.claim.outputs.skip != '1'
         env:
           WHOP_API_KEY: ${{ secrets.WHOP_API_KEY }}
+          DIST_POSTING_MODE: ${{ secrets.DIST_POSTING_MODE }}
+          FILEPOST_API_KEY: ${{ secrets.FILEPOST_API_KEY }}
+          DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
+          HASHNODE_PAT: ${{ secrets.HASHNODE_PAT }}
+          HASHNODE_PUBLICATION_ID: ${{ secrets.HASHNODE_PUBLICATION_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
+          DISCORD_PROMO_WEBHOOKS: ${{ secrets.DISCORD_PROMO_WEBHOOKS }}
+          GUMROAD_ACCESS_TOKEN: ${{ secrets.GUMROAD_ACCESS_TOKEN }}
+          ITCH_API_KEY: ${{ secrets.ITCH_API_KEY }}
+          ITCH_USERNAME: ${{ secrets.ITCH_USERNAME }}
+          SELLIX_API_KEY: ${{ secrets.SELLIX_API_KEY }}
+          SELLAPP_API_KEY: ${{ secrets.SELLAPP_API_KEY }}
+          FETCHAPP_KEY: ${{ secrets.FETCHAPP_KEY }}
+          FETCHAPP_TOKEN: ${{ secrets.FETCHAPP_TOKEN }}
+          WEBFLOW_TOKEN: ${{ secrets.WEBFLOW_TOKEN }}
+          WEBFLOW_COLLECTION_ID: ${{ secrets.WEBFLOW_COLLECTION_ID }}
+          SYSTEMEIO_API_KEY: ${{ secrets.SYSTEMEIO_API_KEY }}
+          IA_ACCESS_KEY: ${{ secrets.IA_ACCESS_KEY }}
+          IA_SECRET_KEY: ${{ secrets.IA_SECRET_KEY }}
+          BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
+          BUFFER_CHANNEL_IDS: ${{ secrets.BUFFER_CHANNEL_IDS }}
           WHOP_COMPANY_ID: ${{ secrets.WHOP_COMPANY_ID }}
           OWN_FORUM_ID: ${{ secrets.OWN_FORUM_ID }}
           PUBLIC_FORUM_ID: ${{ secrets.PUBLIC_FORUM_ID }}

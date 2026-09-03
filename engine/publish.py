@@ -123,6 +123,27 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
     # product appears on Discover, not just via direct link. Free products
     # are visible immediately; paid ones are hidden until /approve, so only
     # submit the ones that are actually visible.
+    # Fan out to every configured distribution channel. Enqueue only — no
+    # network here; the bounded worker drains it. A dead channel can never
+    # stall or fail a publish run.
+    try:
+        import dist_core
+        import dist_channels  # noqa: F401  (registers the adapters)
+        dist_core.enqueue({
+            "slug": slug,
+            "title": pack.get("title"),
+            "subtitle": pack.get("subtitle"),
+            "description": description,
+            "keywords": pack.get("keywords") or [],
+            "faq": pack.get("faq") or [],
+            "price": price,
+            "page_url": result.get("page_url") or "",
+            "deliverable_url": (file_urls[0]["url"] if file_urls else ""),
+            "gallery_images": image_urls or [],
+        })
+    except Exception as e:  # noqa: BLE001
+        print(f"[dist] enqueue skipped: {e}")
+
     # FAQs: no product field exists, so attach the FAQ app as an experience
     # (sidebar item) and print the generated copy for the one manual paste.
     marketplace.faq_report(product_id, pack.get("faq"))
