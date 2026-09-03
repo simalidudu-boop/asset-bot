@@ -252,13 +252,34 @@ def ch_sellapp(a: dict) -> dict:
                       headers={"Authorization": f"Bearer {env('SELLAPP_API_KEY')}",
                                "Accept": "application/json"},
                       json_body={"title": title[:150],
-                                 "description": (blurb + (f"\n\n{url}" if url else ""))[:2000],
+                                 # min 5 chars, else 422
+                                 "description": (blurb + (f"\n\n{url}" if url else "")
+                                                 or "Digital download.")[:2000],
+                                 "visibility": "PUBLIC",
+                                 # NOT `type` — that is always "invalid".
+                                 # serials | service | dynamic
+                                 "deliverables_type": "service",
+                                 "currency": "USD",
                                  "price": {"amount": str(a.get("price") or 0),
                                            "currency": "USD"}})
     b = jbody(text)
     if code in (200, 201):
         d = b.get("data") or b
-        return result(True, str(d.get("id", "")), str(d.get("url", "")))
+        pid, slug = str(d.get("id", "")), d.get("slug") or ""
+        store = env("SELLAPP_STORE") or ""
+        # VERIFY: sell.app returns 201 for products that do not actually
+        # persist (observed 2026-09-03 — GET /products/{id} then 404s and the
+        # list stays empty). Never trust the create response alone.
+        vcode, _ = http("GET", f"https://sell.app/api/v2/products/{pid}",
+                        headers={"Authorization": f"Bearer {env('SELLAPP_API_KEY')}",
+                                 "Accept": "application/json"})
+        if vcode != 200:
+            return result(False, permanent=True,
+                          error=f"created id={pid} but GET returned {vcode} — "
+                                "product did not persist (store likely needs "
+                                "setup/verification in the sell.app dashboard)")
+        return result(True, pid,
+                      f"https://{store}/product/{slug}" if store and slug else "")
     return from_http(code, text)
 
 

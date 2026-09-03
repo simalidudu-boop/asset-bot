@@ -80,3 +80,49 @@ Tested against the live dev.to API and with fault injection:
 - DRAFT → queued, nothing posted
 - re-enqueue of the same asset+channel → **0 added** (idempotent)
 - `max_jobs` cap respected; corrupt queue line skipped, rest survived
+
+## Live key test — 2026-09-03
+
+Six channels tested with real credentials.
+
+| Channel | Result | Detail |
+|---|---|---|
+| **filepost** | ✅ **WORKING** | Returned a real CDN URL serving **1,038,586 bytes** |
+| **systemeio** | ⚠️ auth OK, **plan-capped** | `422 "Please upgrade your plan to create more tags"` — key is valid, free tier tag limit reached |
+| **sellapp** | ⚠️ auth OK, **store not provisioned** | See below |
+| **webflow** | ⚠️ token valid, **scopes missing** | `403 missing scopes 'cms:write'` (and `cms:read`) |
+| **fetchapp** | ❌ **server-side 500** | 500 *with no auth at all* → not our key |
+| **sellix** | ❓ **unreachable from sandbox** | `dev.sellix.io`, `sellix.io`, `www.sellix.io` all fail DNS. Untested, not broken |
+
+### sell.app — a false 201
+
+`POST /api/v2/products` returns **201 with a product id**, but:
+
+- `GET /api/v2/products/{id}` → **404 "No query results for model [Listing]"**
+- `GET /api/v2/products` → **empty**, with or without `X-STORE-ID`
+- the storefront URL → **404**
+
+So the create silently does not persist. The store (`store_id 82606`) most
+likely needs finishing/verifying in the sell.app dashboard before the API can
+create real listings.
+
+Field notes learned the hard way:
+- the field is **`deliverables_type`** (`serials|service|dynamic`), **not
+  `type`** — `type` is *always* "invalid" whatever you pass
+- `visibility` is required, `description` needs ≥5 chars
+- `variants` passed at create time are ignored
+
+**The adapter now VERIFIES with a GET after create** and reports failure rather
+than a false success. This is the fourth false-200 in this project (after Whop
+`banner_image`, `labels`, and app `base_url`) — never trust a write response
+without reading it back.
+
+### What you need to do
+
+| Channel | Action |
+|---|---|
+| systemeio | upgrade plan, or reuse an existing tag instead of creating one |
+| webflow | regenerate the token with **`cms:read` + `cms:write`** scopes |
+| sellapp | finish store setup/verification in the dashboard |
+| fetchapp | their API is 500-ing; retry later (adapter already treats 5xx as retryable) |
+| sellix | test from a normal network — sandbox DNS cannot resolve it |
