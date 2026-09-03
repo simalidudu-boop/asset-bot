@@ -378,3 +378,54 @@ CONNECTED CHANNELS: 1
 X posting works today. LinkedIn and Pinterest must be connected inside the
 Buffer dashboard (Channels → Connect); no new API key is needed — the adapter
 loops over whatever ids are in `BUFFER_CHANNEL_IDS`.
+
+## Retry round — 2026-09-03 (evening)
+
+### Buffer — 3 channels connected, X + LinkedIn posting ✅
+
+All three now show connected: twitter `69fb5a1a...`, linkedin `6a99b789...`,
+pinterest `6a99b7c6...`.
+
+First 3-channel attempt posted only **2**, and the adapter wrongly reported a
+clean `ok=True`. Two real bugs found:
+
+**1. Whop CDN images 403 to third parties.** Buffer replied *"Image could not
+be read from its URL"*. `img-v2-prod.whop.com` returns **403** to outside
+fetchers, so `gallery_images` is unusable for syndication. Added
+`public_image()`, which prefers the **GitHub Release** copy (public, 200) and
+never returns a Whop URL. `release_images` is now stored in the manifest and
+written by `publish.py` going forward.
+Re-test: **2/2 posted with images attached.**
+
+**2. Pinterest requires a board.** *"Pinterest posts require a board to be
+selected."* Buffer's API does **not** expose board ids (no `PinterestChannel`
+type, `ServiceData` has no queryable subfields), so supply one:
+
+```
+BUFFER_PINTEREST_BOARD=<boardServiceId>
+# or per-channel: BUFFER_PINTEREST_BOARDS=<channelId>:<boardId>,...
+```
+
+Get the id from the board URL in Pinterest. The adapter then sends
+`metadata.pinterest.boardServiceId`.
+
+**3. Partial success is no longer hidden** — posting to 2 of 3 channels now
+reports which failed instead of a clean success.
+
+### itch.io ✅ WORKING via butler
+
+The page now exists (`ai-skills`, id 4970002), which was the missing piece.
+butler v15.31.0 downloaded from `broth.itch.zone`, and the adapter shells out
+to it.
+
+**Verified independently** — not just the exit code:
+
+```
+butler status simalidudu-boop/ai-skills
+| downloads | #19088428 | #1943163 | 1 |
+```
+
+API confirms upload `ai-skills-downloads.zip`, 190,723 bytes, build 1943163.
+
+Config: `ITCH_TARGET=simalidudu-boop/ai-skills:downloads` and `BUTLER_PATH`
+(or butler on PATH). CI must download the butler binary before the run.

@@ -82,6 +82,10 @@ jobs:
           DISCORD_PROMO_WEBHOOKS: ${{ secrets.DISCORD_PROMO_WEBHOOKS }}
           GUMROAD_ACCESS_TOKEN: ${{ secrets.GUMROAD_ACCESS_TOKEN }}
           ITCH_API_KEY: ${{ secrets.ITCH_API_KEY }}
+          ITCH_TARGET: ${{ secrets.ITCH_TARGET }}
+          BUTLER_PATH: ${{ secrets.BUTLER_PATH }}
+          BUFFER_PINTEREST_BOARD: ${{ secrets.BUFFER_PINTEREST_BOARD }}
+          BUFFER_PINTEREST_BOARDS: ${{ secrets.BUFFER_PINTEREST_BOARDS }}
           ITCH_USERNAME: ${{ secrets.ITCH_USERNAME }}
           SELLIX_API_KEY: ${{ secrets.SELLIX_API_KEY }}
           FETCHAPP_KEY: ${{ secrets.FETCHAPP_KEY }}

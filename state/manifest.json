@@ -42,6 +42,10 @@
           "question": "What if it does not work for my niche?",
           "answer": "The prompts are niche-agnostic by design \u2014 you supply the topic. If it genuinely is not a fit, reply on the product page and we will make it right."
         }
+      ],
+      "release_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/zero-click-content-machine.zero-click-content-machine-img-1.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/zero-click-content-machine.zero-click-content-machine-img-2.jpg"
       ]
     },
     {
@@ -87,6 +91,10 @@
           "question": "Can I use this for client work?",
           "answer": "Yes. Use the research and outputs commercially. Please just don't resell the pack itself."
         }
+      ],
+      "release_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/the-content-research-engine.the-content-research-engine-img-1.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/the-content-research-engine.the-content-research-engine-img-2.jpg"
       ]
     },
     {

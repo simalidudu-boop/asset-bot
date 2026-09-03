@@ -33,15 +33,34 @@ def canonical_url(a: dict) -> str:
     return f"{base.rstrip('/')}/p/{slug}" if slug else ""
 
 
+def public_image(a: dict) -> str:
+    """An image URL a THIRD PARTY can actually fetch.
+
+    Whop's img-v2-prod CDN returns 403 to outside fetchers (verified:
+    Buffer replied "Image could not be read from its URL"), so gallery_images
+    is useless for syndication. Prefer the GitHub Release copy, which is
+    public, then any non-Whop gallery entry.
+    """
+    for key in ("public_image_url", "image_url"):
+        v = (a.get(key) or "").strip()
+        if v:
+            return v
+    for u in (a.get("release_images") or []):
+        if u:
+            return u
+    for u in (a.get("gallery_images") or []):
+        if u and "whop.com" not in u:
+            return u
+    return ""
+
+
 def _asset_bits(a: dict) -> tuple[str, str, str, str]:
     """(title, blurb, url, image) — the four things every channel wants."""
     title = a.get("title") or a.get("slug") or "New release"
     blurb = (a.get("description") or a.get("subtitle") or "").strip()
     url = (canonical_url(a) or a.get("page_url")
            or a.get("cdn_url") or a.get("landing_url") or "")
-    imgs = a.get("gallery_images") or []
-    image = imgs[0] if imgs else (a.get("image_url") or "")
-    return title, blurb, url, image
+    return title, blurb, url, public_image(a)
 
 
 def _markdown(a: dict) -> str:
@@ -478,6 +497,16 @@ def ch_buffer(a: dict) -> dict:
                "schedulingType": "automatic", "needsApproval": False,
                # AssetInput = {document|image|video}; ImageAssetInput={url,...}
                "assets": ([{"image": {"url": image}}] if image else [])}
+        # Pinterest rejects any pin without a board. Board ids are NOT exposed
+        # by Buffer's API, so supply them as BUFFER_PINTEREST_BOARD (or
+        # "<channelId>:<boardId>" pairs in BUFFER_PINTEREST_BOARDS).
+        boards = dict(p.split(":", 1) for p in
+                      [x for x in env("BUFFER_PINTEREST_BOARDS").split(",") if ":" in x])
+        board = boards.get(cid) or env("BUFFER_PINTEREST_BOARD")
+        if board:
+            inp["metadata"] = {"pinterest": {"boardServiceId": board,
+                                             "title": title[:100],
+                                             **({"url": url} if url else {})}}
         code, text = http("POST", "https://api.buffer.com/graphql",
                           headers={"Authorization": f"Bearer {env('BUFFER_ACCESS_TOKEN')}"},
                           json_body={"query": mutation, "variables": {"input": inp}})
@@ -489,8 +518,13 @@ def ch_buffer(a: dict) -> dict:
             errs = b.get("errors") or []
             last = str(cp.get("message")
                        or (errs[0].get("message") if errs else f"http_{code}"))
-    if posted:
+    if posted and len(posted) == len(ids):
         return result(True, ",".join(posted))
+    if posted:
+        # Partial success used to be reported as a clean ok=True, which hid
+        # a silently-dropped channel. Surface it.
+        return result(True, ",".join(posted), "",
+                      f"{len(posted)}/{len(ids)} channels posted; last error: {last}")
     # "limit reached" is temporary; auth/validation are not.
     return result(False, error=last or "buffer post failed",
                   permanent="limit" not in last.lower())

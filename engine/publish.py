@@ -140,6 +140,8 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
             "page_url": result.get("page_url") or "",
             "deliverable_url": (file_urls[0]["url"] if file_urls else ""),
             "gallery_images": image_urls or [],
+            # public (non-Whop) copies — third parties cannot fetch Whop CDN
+            "release_images": image_urls or [],
         })
     except Exception as e:  # noqa: BLE001
         print(f"[dist] enqueue skipped: {e}")
