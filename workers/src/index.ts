@@ -20,6 +20,8 @@ export interface Env {
   GH_TOKEN: string;
   BOT_TOKEN: string;
   AI: any;
+  KOFI_VERIFICATION_TOKEN: string;
+  DISCORD_ALERT_WEBHOOK: string;
 }
 
 const CONFIG_DEFAULTS: Record<string, string | number | boolean> = {
@@ -676,6 +678,104 @@ export default {
     // ---- cron claim: GitHub's fallback schedule checks in here first ----
     // Returns {claimed:false} when the Worker already dispatched this slot,
     // so the dead-man's-switch run exits instead of duplicating the work.
+    // ---- Ko-fi webhook (INBOUND: payment notifications, not distribution) ----
+    // Ko-fi has no publishing API — its API is webhooks only. This is our
+    // first real revenue signal: until now nothing in the pipeline could tell
+    // us a stranger had actually paid.
+    //
+    // Contract (per Ko-fi docs): application/x-www-form-urlencoded, with a
+    // `data` field holding a JSON STRING. Must return 200 or Ko-fi retries the
+    // same message_id. Verification token is plain text — compare in constant
+    // time and never log it.
+    if (p === "/api/kofi" && request.method === "POST") {
+      let payload: any = {};
+      try {
+        const form = new URLSearchParams(await request.text());
+        payload = JSON.parse(form.get("data") ?? "{}");
+      } catch {
+        // Always 200 — a parse failure must not make Ko-fi retry forever.
+        return json({ ok: false, error: "bad payload" });
+      }
+
+      const expected = env.KOFI_VERIFICATION_TOKEN ?? "";
+      const got = String(payload.verification_token ?? "");
+      // constant-time-ish compare
+      let same = expected.length === got.length && expected.length > 0;
+      for (let i = 0; i < Math.min(expected.length, got.length); i++) {
+        if (expected[i] !== got[i]) same = false;
+      }
+      if (!same) {
+        return new Response(JSON.stringify({ ok: false, error: "bad token" }),
+          { status: 401, headers: { "content-type": "application/json" } });
+      }
+
+      const id = String(payload.message_id ?? "");
+      const sale = {
+        id,
+        at: String(payload.timestamp ?? new Date().toISOString()),
+        type: String(payload.type ?? "Tip"),          // Tip|Subscription|Commission|Shop Order
+        amount: Number(payload.amount ?? 0),
+        currency: String(payload.currency ?? "USD"),
+        from: String(payload.from_name ?? "Someone"),
+        email: String(payload.email ?? ""),
+        // Ko-fi: hide the message publicly when is_public is false
+        message: payload.is_public ? String(payload.message ?? "") : "",
+        isPublic: !!payload.is_public,
+        isSub: !!payload.is_subscription_payment,
+        isFirstSub: !!payload.is_first_subscription_payment,
+        tier: String(payload.tier_name ?? ""),
+        items: (payload.shop_items ?? []).map((i: any) =>
+          String(i.direct_link_code ?? "")),
+      };
+
+      try {
+        const raw = await env.BOT_STATE.get("sales");
+        const sales: any[] = raw ? JSON.parse(raw) : [];
+        // idempotent: Ko-fi retries the same message_id until it sees a 200
+        if (!sales.some((x) => x.id === id && id)) {
+          sales.unshift(sale);
+          while (sales.length > 200) sales.pop();
+          await env.BOT_STATE.put("sales", JSON.stringify(sales));
+
+          // Announce it — the first paid sale is the signal that matters most.
+          const hook = env.DISCORD_ALERT_WEBHOOK ?? "";
+          if (hook) {
+            const money = `${sale.currency} ${sale.amount.toFixed(2)}`;
+            await fetch(hook, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                embeds: [{
+                  title: `💰 ${sale.type} — ${money}`,
+                  description: `from **${sale.from}**` +
+                    (sale.tier ? `\nTier: ${sale.tier}` : "") +
+                    (sale.message ? `\n> ${sale.message}` : ""),
+                  color: 0x2ecc71,
+                }],
+              }),
+            }).catch(() => {});
+          }
+        }
+      } catch { /* never fail the webhook on storage problems */ }
+
+      return json({ ok: true });
+    }
+
+    if (p === "/api/sales" && request.method === "GET") {
+      const raw = await env.BOT_STATE.get("sales");
+      const sales: any[] = raw ? JSON.parse(raw) : [];
+      const total = sales.reduce((n, s) => n + (s.amount || 0), 0);
+      const today = new Date().toISOString().slice(0, 10);
+      return json({
+        ok: true,
+        count: sales.length,
+        total: Number(total.toFixed(2)),
+        today: Number(sales.filter((s) => String(s.at).slice(0, 10) === today)
+          .reduce((n, s) => n + (s.amount || 0), 0).toFixed(2)),
+        sales: sales.slice(0, 25),
+      });
+    }
+
     if (p === "/api/cronclaim" && request.method === "POST") {
       const { workflow } = (await request.json()) as { workflow: string };
       if (!workflow) return json({ error: "workflow required" }, 400);

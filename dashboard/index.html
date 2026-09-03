@@ -329,7 +329,11 @@ async function review(issue,command){
   else toast("failed: "+(r.error||""));
 }
 
+async function loadSales(){
+  try{ window.__sales = await wfetch("/api/sales"); }catch(e){ window.__sales=null; }
+}
 async function refreshAll(){
+  await loadSales();
   let s;
   try{
     s = await wfetch("/api/summary");
@@ -364,6 +368,8 @@ async function refreshAll(){
 
   // KPIs
   document.getElementById("kpis").innerHTML=`
+    <div class="kpi"><div class="n" style="color:#2ecc71">$${(window.__sales?.total??0).toFixed(2)}</div><div class="l">revenue</div></div>
+    <div class="kpi"><div class="n" style="color:#2ecc71">${window.__sales?.count??0}</div><div class="l">sales</div></div>
     <div class="kpi"><div class="n">${s.assets.total}</div><div class="l">assets</div></div>
     <div class="kpi"><div class="n" style="color:var(--free)">${s.assets.free}</div><div class="l">free</div></div>
     <div class="kpi"><div class="n" style="color:var(--paid)">${s.assets.paid}</div><div class="l">paid</div></div>
