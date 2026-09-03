@@ -670,18 +670,36 @@ def ch_blogger(a: dict) -> dict:
 def ch_mastodon(a: dict) -> dict:
     """Free, bot-tolerant, no approval. Posts a status with the pack link."""
     title, blurb, url, image = _asset_bits(a)
-    host = (env("MASTODON_INSTANCE") or "https://mastodon.social").rstrip("/")
-    tok = env("MASTODON_ACCESS_TOKEN")
     body = f"{title}\n\n{blurb}"[:450] + (f"\n\n{url}" if url else "")
-    code, text = http("POST", f"{host}/api/v1/statuses",
-                      headers={"Authorization": f"Bearer {tok}",
-                               "Idempotency-Key": f"assetbot-{a.get('slug','')}"},
-                      json_body={"status": body, "visibility": "public"})
-    b = jbody(text)
-    if code in (200, 201):
-        return result(True, str(b.get("id", "")), str(b.get("url", "")))
-    return result(False, error=f"http_{code}: {str(b.get('error') or text)[:120]}",
-                  permanent=code in (401, 403, 422))
+
+    # A Mastodon token is issued BY one instance and only works there. But the
+    # fediverse federates: a public post on any instance is delivered to every
+    # server following the account, so one instance is not a reach ceiling.
+    # For extra accounts, add MASTODON_EXTRA="https://host|token,https://h2|t2".
+    pairs = [((env("MASTODON_INSTANCE") or "https://mastodon.social"),
+              env("MASTODON_ACCESS_TOKEN"))]
+    for chunk in [c for c in env("MASTODON_EXTRA").split(",") if "|" in c]:
+        h, t = chunk.split("|", 1)
+        pairs.append((h.strip(), t.strip()))
+
+    posted, last = [], ""
+    for host, tok in pairs:
+        if not tok:
+            continue
+        code, text = http("POST", f"{host.rstrip('/')}/api/v1/statuses",
+                          headers={"Authorization": f"Bearer {tok}",
+                                   "Idempotency-Key": f"assetbot-{a.get('slug','')}"},
+                          json_body={"status": body, "visibility": "public"})
+        b = jbody(text)
+        if code in (200, 201):
+            posted.append(str(b.get("url", "")))
+        else:
+            last = f"{host} http_{code}: {str(b.get('error') or text)[:80]}"
+    if posted:
+        return result(True, "", posted[0],
+                      "" if len(posted) == len(pairs) else f"partial; {last}")
+    return result(False, error=last or "no mastodon post",
+                  permanent="401" in last or "403" in last)
 
 
 # ----------------------------------------------------------------- Zenodo ---
@@ -774,6 +792,45 @@ def ch_email(a: dict) -> dict:
                                 "has no send endpoint — trigger the campaign in the UI")
 
 
+
+# ---------------------------------------------------------------- YouTube ---
+def ch_youtube(a: dict) -> dict:
+    """Upload the slideshow video via the Apps Script bridge.
+
+    Why a bridge: the normal path needs a Google Cloud project, OAuth consent
+    screen, OAuth client and refresh token. Apps Script's built-in "YouTube
+    Data API v3" Advanced Service runs as the script owner, so none of that is
+    required — no Cloud Console, no credit card. See appsscript/youtube-bridge.gs.
+
+    Quota note: since June 2026 videos.insert bills to its own bucket at
+    ~1 unit/call, 100 uploads/day, so it no longer eats the 10k pool.
+    """
+    title, blurb, url, _ = _asset_bits(a)
+    video = (a.get("video_url") or "").strip()
+    if not video:
+        return result(False, error="no video_url for this asset", permanent=True)
+
+    payload = {
+        "secret": env("YOUTUBE_BRIDGE_SECRET"),
+        "videoUrl": video,
+        "title": f"{title} — AI prompt pack"[:100],
+        "description": (f"{blurb}\n\n{url}\n" if url else blurb)[:4900],
+        "tags": (a.get("keywords") or ["AI", "prompts", "productivity"])[:10],
+        "privacy": env("YOUTUBE_PRIVACY") or "public",
+    }
+    # uploads are slow: allow a long timeout
+    code, text = http("POST", env("YOUTUBE_BRIDGE_URL"),
+                      json_body=payload, timeout=600)
+    b = jbody(text)
+    if code == 200 and b.get("ok"):
+        return result(True, str(b.get("videoId", "")), str(b.get("url", "")))
+    err = str(b.get("error") or f"http_{code}")
+    # config problems are permanent; transient fetch/quota errors are not
+    perm = err in ("unauthorized", "advanced_service_not_enabled",
+                   "videoUrl required", "bad_json")
+    return result(False, error=err[:200], permanent=perm)
+
+
 # ---------------------------------------------------------------- registry ---
 # Adding a channel = an adapter above + one line here. Nothing else changes.
 # Channels whose keys are absent are skipped silently by dist_core.has_keys.
@@ -794,6 +851,7 @@ register("huggingface", ch_huggingface, ["HF_TOKEN"])
 register("mastodon",  ch_mastodon,  ["MASTODON_ACCESS_TOKEN"])
 register("zenodo",    ch_zenodo,    ["ZENODO_TOKEN"])
 register("indexnow",  ch_indexnow,  ["INDEXNOW_KEY"])
+register("youtube",   ch_youtube,   ["YOUTUBE_BRIDGE_URL", "YOUTUBE_BRIDGE_SECRET"])
 register("tumblr",    ch_tumblr,    ["TUMBLR_CONSUMER_KEY", "TUMBLR_CONSUMER_SECRET",
                                      "TUMBLR_TOKEN", "TUMBLR_TOKEN_SECRET"])
 register("blogger",   ch_blogger,   ["BLOGGER_EMAIL", "BLOGGER_SMTP_HOST",

@@ -470,3 +470,67 @@ is why the list is empty.
 Also: systeme.io's free API has **no transactional send endpoint** — it can
 tag contacts and manage them, but campaigns are triggered in their UI. The
 adapter reports the mailable count rather than pretending to send.
+
+## YouTube without Google Cloud — the Apps Script bridge
+
+**You do not need a Cloud Console project or a credit card.** Grain Works
+avoids it, and we now do the same.
+
+Apps Script ships a built-in **"YouTube Data API v3" Advanced Service** that
+runs as the *script owner's* Google account. No Cloud project, no OAuth
+consent screen, no OAuth client, no refresh token, no billing.
+
+`appsscript/youtube-bridge.gs` wraps that in a tiny web app:
+
+- `GET /exec?secret=…` → health check (channel name, video count)
+- `POST /exec` `{secret, videoUrl, title, description, tags, privacy}` →
+  downloads the MP4 and calls `YouTube.Videos.insert`
+
+Setup (~5 min, once):
+
+1. script.google.com → New project → paste the file
+2. Services (+) → add **YouTube Data API v3** (identifier must be `YouTube`)
+3. Project Settings → Script Properties → `SHARED_SECRET = <random string>`
+4. Deploy → New deployment → **Web app**, execute as *Me*, access *Anyone*
+5. Run `authorizeOnce` once and accept the Google consent screen
+6. Set `YOUTUBE_BRIDGE_URL` (the /exec URL) and `YOUTUBE_BRIDGE_SECRET`
+
+Security: Apps Script requires "Anyone" access for machine callers, so the
+endpoint is public — every request must carry the shared secret, and requests
+without it are rejected before anything uploads.
+
+We already generate slideshow videos (`the-content-research-engine` has one
+waiting), so this channel activates as soon as the bridge URL is set.
+
+## Mastodon — the token limit is real, the reach limit is not
+
+A Mastodon token is issued **by one instance** and only authenticates there
+(verified: the token 401s on mstdn.social and fosstodon.org). That cannot be
+worked around — it is how the protocol authenticates.
+
+**But it does not cap reach.** The fediverse federates: the post is a public
+ActivityPub `Note` addressed `to: Public`, resolvable by any server:
+
+```
+uri: https://mastodon.social/ap/users/…/statuses/117208701730161945
+activitypub fetch -> 200, type: Note, to: [Public]
+```
+
+So users on *any* instance can follow, boost and see it. One account is a
+distribution point, not a walled garden.
+
+If you still want more accounts, the adapter now cross-posts:
+
+```
+MASTODON_EXTRA="https://fosstodon.org|token1,https://mstdn.social|token2"
+```
+
+Each needs its own token from that instance. Honestly: **one account plus
+federation is usually the better play** — several thin accounts posting
+identical text is the sockpuppet pattern that gets flagged.
+
+### Robustness fix
+
+`http()` raised `ValueError: unknown url type: ''` when an endpoint env var was
+blank (hit while testing YouTube with no bridge URL). It now returns a clean
+`invalid url` failure instead of an exception escaping the adapter.

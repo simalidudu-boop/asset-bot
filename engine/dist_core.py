@@ -77,6 +77,10 @@ def http(method: str, url: str, *, headers: dict | None = None,
         body = urllib.parse.urlencode(form).encode()
         hdrs.setdefault("Content-Type", "application/x-www-form-urlencoded")
 
+    if not url or not str(url).startswith(("http://", "https://")):
+        # A missing/blank endpoint must be a clean failure, not a ValueError
+        # that escapes the adapter.
+        return 0, f"invalid url: {url!r}"
     req = urllib.request.Request(url, data=body, method=method.upper())
     for k, v in hdrs.items():
         req.add_header(k, v)

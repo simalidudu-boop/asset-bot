@@ -64,6 +64,10 @@ jobs:
           HF_USER: ${{ secrets.HF_USER }}
           MASTODON_INSTANCE: ${{ secrets.MASTODON_INSTANCE }}
           MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          YOUTUBE_BRIDGE_URL: ${{ secrets.YOUTUBE_BRIDGE_URL }}
+          YOUTUBE_BRIDGE_SECRET: ${{ secrets.YOUTUBE_BRIDGE_SECRET }}
+          YOUTUBE_PRIVACY: ${{ secrets.YOUTUBE_PRIVACY }}
+          MASTODON_EXTRA: ${{ secrets.MASTODON_EXTRA }}
           ZENODO_TOKEN: ${{ secrets.ZENODO_TOKEN }}
           ZENODO_PUBLISH: ${{ secrets.ZENODO_PUBLISH }}
           ZENODO_CREATOR: ${{ secrets.ZENODO_CREATOR }}
