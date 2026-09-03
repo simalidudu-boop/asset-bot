@@ -12,7 +12,10 @@
       "product_id": "prod_3rUWWBYz3FsuL",
       "status": "live",
       "cover_status": "set",
-      "gallery_images": [],
+      "gallery_images": [
+        "https://img-v2-prod.whop.com/RKIZZR5GkseJkm51sVR09Tp6xU6TL-N8LFb7iZOmpbY/plain/https://assets-2-prod.whop.com/public/uploads/user_2090267/image/access_passes/2026-09-02/3eb06350-9f32-4a32-b235-ce83043057b8.jpg",
+        "https://img-v2-prod.whop.com/qLKDJ70IDoJnwEpmftIJyUEB8Wmhec3y8ILwKpnxUxY/plain/https://assets-2-prod.whop.com/public/uploads/user_2090267/image/access_passes/2026-09-02/ebd94dbe-a062-431d-83a6-efc064cf8222.jpg"
+      ],
       "marketplace_status": "pending_review",
       "faq": [
         {
@@ -54,7 +57,10 @@
       "product_id": "prod_F080AA8beZEie",
       "status": "live",
       "cover_status": "set",
-      "gallery_images": [],
+      "gallery_images": [
+        "https://img-v2-prod.whop.com/CTBQ7YlejYFHYDxK4DRIps1Y8utUBKfjmy0cOEp9768/plain/https://assets-2-prod.whop.com/public/uploads/user_2090267/image/access_passes/2026-09-02/886d5a8b-9385-44e1-a39c-b4f24e8b9a7c.jpg",
+        "https://img-v2-prod.whop.com/Y_k6QHUpT9DhyBvjH6UrodVXIbLrpIcJt4SsFMXAmKY/plain/https://assets-2-prod.whop.com/public/uploads/user_2090267/image/access_passes/2026-09-02/08c8bc4f-6cfc-49b4-a61c-c9b30936b46f.jpg"
+      ],
       "marketplace_status": "pending_review",
       "faq": [
         {
