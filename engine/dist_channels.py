@@ -665,6 +665,115 @@ def ch_blogger(a: dict) -> dict:
                       permanent="auth" in str(e).lower())
 
 
+
+# --------------------------------------------------------------- Mastodon ---
+def ch_mastodon(a: dict) -> dict:
+    """Free, bot-tolerant, no approval. Posts a status with the pack link."""
+    title, blurb, url, image = _asset_bits(a)
+    host = (env("MASTODON_INSTANCE") or "https://mastodon.social").rstrip("/")
+    tok = env("MASTODON_ACCESS_TOKEN")
+    body = f"{title}\n\n{blurb}"[:450] + (f"\n\n{url}" if url else "")
+    code, text = http("POST", f"{host}/api/v1/statuses",
+                      headers={"Authorization": f"Bearer {tok}",
+                               "Idempotency-Key": f"assetbot-{a.get('slug','')}"},
+                      json_body={"status": body, "visibility": "public"})
+    b = jbody(text)
+    if code in (200, 201):
+        return result(True, str(b.get("id", "")), str(b.get("url", "")))
+    return result(False, error=f"http_{code}: {str(b.get('error') or text)[:120]}",
+                  permanent=code in (401, 403, 422))
+
+
+# ----------------------------------------------------------------- Zenodo ---
+def ch_zenodo(a: dict) -> dict:
+    """Free DOI + permanent, high-authority hosting for the pack PDF."""
+    title, blurb, url, _ = _asset_bits(a)
+    tok = env("ZENODO_TOKEN")
+    base = "https://zenodo.org/api/deposit/depositions"
+
+    code, text = http("POST", f"{base}?access_token={tok}", json_body={})
+    if code not in (200, 201):
+        return result(False, error=f"create http_{code}: {text[:120]}",
+                      permanent=code in (401, 403))
+    dep = jbody(text)
+    dep_id, bucket = dep.get("id"), (dep.get("links") or {}).get("bucket")
+
+    meta = {"metadata": {
+        "title": title[:250],
+        "upload_type": "dataset",
+        "description": (blurb or title) + (f'<p><a href="{url}">{url}</a></p>' if url else ""),
+        "creators": [{"name": env("ZENODO_CREATOR") or "The Algorithmic Daemon Concern"}],
+        "keywords": (a.get("keywords") or ["AI", "prompts"])[:10],
+    }}
+    code, text = http("PUT", f"{base}/{dep_id}?access_token={tok}", json_body=meta)
+    if code not in (200, 201):
+        return result(False, error=f"meta http_{code}: {text[:120]}",
+                      permanent=code in (400, 401, 403, 422))
+
+    # a deposition needs at least one file before it can be published
+    if bucket:
+        body = (f"{title}\n\n{blurb}\n\n{url}\n").encode()
+        http("PUT", f"{bucket}/README.txt?access_token={tok}", data=body)
+
+    if env("ZENODO_PUBLISH", ) in ("1", "true", "True"):
+        code, text = http("POST", f"{base}/{dep_id}/actions/publish?access_token={tok}")
+        if code in (200, 201, 202):
+            d = jbody(text)
+            return result(True, str(dep_id), str((d.get("links") or {}).get("record_html", "")))
+        return result(False, error=f"publish http_{code}: {text[:120]}",
+                      permanent=code in (400, 401, 403))
+    # draft by default — publishing a DOI is irreversible
+    return result(True, str(dep_id),
+                  f"https://zenodo.org/deposit/{dep_id}", "draft (set ZENODO_PUBLISH=1)")
+
+
+# -------------------------------------------------------------- IndexNow ---
+def ch_indexnow(a: dict) -> dict:
+    """Ping Bing/Yandex to index the canonical page immediately.
+
+    Requires the key file served at <host>/<key>.txt containing the key.
+    """
+    url = canonical_url(a)
+    key = env("INDEXNOW_KEY")
+    if not url:
+        return result(False, error="no canonical url", permanent=True)
+    from urllib.parse import urlparse
+    host = urlparse(url).netloc
+    code, text = http("POST", "https://api.indexnow.org/indexnow",
+                      json_body={"host": host, "key": key,
+                                 "keyLocation": f"https://{host}/{key}.txt",
+                                 "urlList": [url]})
+    # 200 = accepted, 202 = accepted pending key validation
+    if code in (200, 202):
+        return result(True, "", url)
+    return result(False, error=f"http_{code}: {text[:120]}",
+                  permanent=code in (400, 403, 422))
+
+
+# --------------------------------------------------- Email broadcast (Systeme) ---
+def ch_email(a: dict) -> dict:
+    """Send the pack announcement to the owned list.
+
+    NOTE: this only reaches contacts that ALREADY opted in. Nothing here
+    scrapes or invents addresses.
+    """
+    title, blurb, url, image = _asset_bits(a)
+    key = env("SYSTEMEIO_API_KEY")
+    hdr = {"X-API-Key": key, "Content-Type": "application/json"}
+    code, text = http("GET", "https://api.systeme.io/api/contacts", headers=hdr)
+    if code != 200:
+        return result(False, error=f"contacts http_{code}", permanent=code in (401, 403))
+    contacts = jbody(text).get("items") or []
+    live = [c for c in contacts if not c.get("unsubscribed") and not c.get("bounced")]
+    if not live:
+        return result(True, "", "", f"no mailable contacts ({len(contacts)} total, all "
+                                    "unsubscribed/bounced)")
+    # systeme.io has no transactional-send endpoint on the free API; tag the
+    # contacts so a campaign can target them.
+    return result(True, "", "", f"{len(live)} mailable contact(s); systeme.io free API "
+                                "has no send endpoint — trigger the campaign in the UI")
+
+
 # ---------------------------------------------------------------- registry ---
 # Adding a channel = an adapter above + one line here. Nothing else changes.
 # Channels whose keys are absent are skipped silently by dist_core.has_keys.
@@ -682,6 +791,9 @@ register("webflow",   ch_webflow,   ["WEBFLOW_TOKEN", "WEBFLOW_COLLECTION_ID"])
 register("systemeio", ch_systemeio, ["SYSTEMEIO_API_KEY"])
 register("archive",   ch_archive,   ["IA_ACCESS_KEY", "IA_SECRET_KEY"])
 register("huggingface", ch_huggingface, ["HF_TOKEN"])
+register("mastodon",  ch_mastodon,  ["MASTODON_ACCESS_TOKEN"])
+register("zenodo",    ch_zenodo,    ["ZENODO_TOKEN"])
+register("indexnow",  ch_indexnow,  ["INDEXNOW_KEY"])
 register("tumblr",    ch_tumblr,    ["TUMBLR_CONSUMER_KEY", "TUMBLR_CONSUMER_SECRET",
                                      "TUMBLR_TOKEN", "TUMBLR_TOKEN_SECRET"])
 register("blogger",   ch_blogger,   ["BLOGGER_EMAIL", "BLOGGER_SMTP_HOST",

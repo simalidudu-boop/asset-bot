@@ -429,3 +429,44 @@ API confirms upload `ai-skills-downloads.zip`, 190,723 bytes, build 1943163.
 
 Config: `ITCH_TARGET=simalidudu-boop/ai-skills:downloads` and `BUTLER_PATH`
 (or butler on PATH). CI must download the butler binary before the run.
+
+## Round 4 — 2026-09-03 (Mastodon, Zenodo, IndexNow, RSS)
+
+**20 channels registered. 13 verified live.**
+
+| Channel | Result |
+|---|---|
+| **mastodon** | ✅ [live public post](https://mastodon.social/@ai_prompts_skills/117208701730161945) — token is instance-specific (mastodon.social only) |
+| **zenodo** | ✅ draft deposition 22286545. Stays a DRAFT unless `ZENODO_PUBLISH=1` — a published DOI is **irreversible** |
+| **indexnow** | ✅ accepted; key file served at `/16e37…txt` (protocol requires it) |
+| **RSS** | ✅ `/rss.xml` + `/feed.xml`, valid XML, both packs |
+
+### YouTube — BLOCKED, needs OAuth not IDs
+
+A channel ID and user ID cannot upload. `videos.insert` returns
+**401 "Expected OAuth 2 access token"**. Uploading requires a full OAuth2
+flow with `https://www.googleapis.com/auth/youtube.upload`:
+
+1. Google Cloud Console → new project → enable **YouTube Data API v3**
+2. OAuth consent screen (External, add yourself as a test user)
+3. Credentials → OAuth client ID → **Desktop app**
+4. Run the consent flow once, keep the **refresh token**
+5. Set `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`
+
+Channel: `UChT6JgRbKyEY2r_Umyi2cxQ` ("What The Hell?"). We already generate
+slideshow videos, so the adapter is worth building once those three exist.
+
+### Email — where the addresses come from
+
+**We do not scrape any addresses, and nothing here invents them.** The list
+has exactly **1 contact** (`simalidudu@gmail.com`, self-registered 2026-08-26)
+and it is **unsubscribed**, so the broadcast correctly reports
+`no mailable contacts`.
+
+The intended source is opt-in only: a buyer downloads the free pack, gives an
+email, and Systeme.io stores it. That capture form does not exist yet, which
+is why the list is empty.
+
+Also: systeme.io's free API has **no transactional send endpoint** — it can
+tag contacts and manage them, but campaigns are triggered in their UI. The
+adapter reports the mailable count rather than pretending to send.

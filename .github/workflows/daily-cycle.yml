@@ -62,6 +62,16 @@ jobs:
           FILEPOST_API_KEY: ${{ secrets.FILEPOST_API_KEY }}
           DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
           HF_USER: ${{ secrets.HF_USER }}
+          MASTODON_INSTANCE: ${{ secrets.MASTODON_INSTANCE }}
+          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          ZENODO_TOKEN: ${{ secrets.ZENODO_TOKEN }}
+          ZENODO_PUBLISH: ${{ secrets.ZENODO_PUBLISH }}
+          ZENODO_CREATOR: ${{ secrets.ZENODO_CREATOR }}
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_CHANNEL_ID: ${{ secrets.YOUTUBE_CHANNEL_ID }}
           TUMBLR_BLOG_URL: ${{ secrets.TUMBLR_BLOG_URL }}
           TUMBLR_CONSUMER_KEY: ${{ secrets.TUMBLR_CONSUMER_KEY }}
           TUMBLR_CONSUMER_SECRET: ${{ secrets.TUMBLR_CONSUMER_SECRET }}

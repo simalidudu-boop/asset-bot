@@ -21,6 +21,7 @@ export interface Env {
   BOT_TOKEN: string;
   AI: any;
   KOFI_VERIFICATION_TOKEN: string;
+  INDEXNOW_KEY: string;
   DISCORD_ALERT_WEBHOOK: string;
 }
 
@@ -470,7 +471,9 @@ export default {
     //
     // Why this exists: Whop product pages declare canonical = the STORE ROOT,
     // not themselves, so they tell Google not to index the product page.
-    if ((p.startsWith("/p/") || p === "/p" || p === "/sitemap.xml" || p === "/robots.txt")
+    if ((p.startsWith("/p/") || p === "/p" || p === "/sitemap.xml" || p === "/robots.txt"
+         || p === "/rss.xml" || p === "/feed.xml"
+         || (env.INDEXNOW_KEY && p === `/${env.INDEXNOW_KEY}.txt`))
         && request.method === "GET") {
       let assets: any[] = [];
       try {
@@ -480,6 +483,43 @@ export default {
       } catch { /* fall through to empty */ }
       const live = assets.filter((a: any) => a.product_id && a.status === "live");
       const origin = url.origin;
+
+      // IndexNow key file — the protocol requires <host>/<key>.txt to echo
+      // the key, proving we control the domain.
+      if (p === `/${env.INDEXNOW_KEY ?? "__none__"}.txt`) {
+        return new Response(env.INDEXNOW_KEY ?? "", {
+          headers: { "content-type": "text/plain; charset=utf-8" } });
+      }
+
+      // RSS — a feed is a passive syndication multiplier: dev.to, Hashnode,
+      // Medium and every reader can auto-import from it.
+      if (p === "/rss.xml" || p === "/feed.xml") {
+        const esc = (t: any) => String(t ?? "")
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const items = live.map((a: any) => {
+          const link = `${origin}/p/${a.slug}`;
+          const img = (a.release_images || a.gallery_images || [])[0] || "";
+          return `<item>
+<title>${esc(a.title)}</title>
+<link>${link}</link>
+<guid isPermaLink="true">${link}</guid>
+<description>${esc(a.subtitle || a.title)}</description>
+${a.created ? `<pubDate>${new Date(a.created).toUTCString()}</pubDate>` : ""}
+${img ? `<enclosure url="${esc(img)}" type="image/jpeg"/>` : ""}
+</item>`;
+        }).join("\n");
+        return new Response(
+          `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+<title>Asset Bot — prompt packs</title>
+<link>${origin}/p</link>
+<description>New AI prompt packs, as they ship.</description>
+<language>en</language>
+${items}
+</channel></rss>`,
+          { headers: { "content-type": "application/rss+xml; charset=utf-8",
+                       "cache-control": "public, max-age=300" } });
+      }
 
       if (p === "/robots.txt") {
         return new Response(
