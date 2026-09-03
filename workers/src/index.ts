@@ -454,6 +454,138 @@ export default {
     // It appends ?productId=... (and other params) when embedding, so we
     // resolve the product from the query first, then fall back to matching
     // the experience id recorded in the manifest, then to the sole product.
+    // ---- /p/:slug — thin canonical page per pack ----
+    // NOT in the buy path: nobody is routed through here. Its whole job is to
+    // be a self-canonicalising, indexable target that syndicated copies
+    // (dev.to, Hashnode, Webflow) point back at, with the CTA going straight
+    // to Whop checkout so no friction is added for buyers.
+    //
+    // Why this exists: Whop product pages declare canonical = the STORE ROOT,
+    // not themselves, so they tell Google not to index the product page.
+    if ((p.startsWith("/p/") || p === "/p" || p === "/sitemap.xml" || p === "/robots.txt")
+        && request.method === "GET") {
+      let assets: any[] = [];
+      try {
+        const d = await gh(env, "GET",
+          `/repos/${env.GH_OWNER}/${env.GH_REPO}/contents/state/manifest.json`);
+        assets = (JSON.parse(atob(String(d.content).replace(/\s/g, ""))).assets) || [];
+      } catch { /* fall through to empty */ }
+      const live = assets.filter((a: any) => a.product_id && a.status === "live");
+      const origin = url.origin;
+
+      if (p === "/robots.txt") {
+        return new Response(
+          `User-agent: *\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`,
+          { headers: { "content-type": "text/plain; charset=utf-8" } });
+      }
+
+      if (p === "/sitemap.xml") {
+        const urls = [`${origin}/p`, ...live.map((a: any) => `${origin}/p/${a.slug}`)];
+        return new Response(
+          `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+          urls.map((u) => `<url><loc>${u}</loc></url>`).join("\n") +
+          `\n</urlset>`,
+          { headers: { "content-type": "application/xml; charset=utf-8" } });
+      }
+
+      const esc = (t: any) => String(t ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+      const shell = (title: string, head: string, body: string) =>
+        `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}</title>${head}
+<style>
+  :root{color-scheme:dark light}
+  *{box-sizing:border-box}
+  body{margin:0;padding:32px 20px;background:#0f1115;color:#e8eaed;
+       font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+  .w{max-width:720px;margin:0 auto}
+  a{color:#7cc4ff}
+  h1{font-size:30px;line-height:1.2;margin:0 0 8px}
+  .sub{opacity:.75;font-size:18px;margin:0 0 24px}
+  img.hero{width:100%;border-radius:12px;margin:0 0 24px}
+  .cta{display:inline-block;background:#ff6b35;color:#fff;font-weight:700;
+       padding:14px 28px;border-radius:10px;text-decoration:none;margin:8px 0 28px}
+  details{border:1px solid #2a2e37;border-radius:10px;padding:14px 16px;margin-bottom:10px;background:#161922}
+  summary{cursor:pointer;font-weight:600}
+  .card{display:block;border:1px solid #2a2e37;border-radius:12px;padding:16px;
+        margin-bottom:12px;text-decoration:none;color:inherit;background:#161922}
+  footer{margin-top:40px;opacity:.5;font-size:13px}
+</style></head><body><div class="w">${body}
+<footer>Published by The Algorithmic Daemon Concern.</footer></div></body></html>`;
+
+      // index
+      if (p === "/p" || p === "/p/") {
+        const body = `<h1>Prompt packs</h1><p class="sub">Every pack we've shipped.</p>` +
+          (live.length ? live.map((a: any) =>
+            `<a class="card" href="${origin}/p/${esc(a.slug)}"><b>${esc(a.title)}</b><br>
+             <span style="opacity:.7">${esc(a.subtitle || "")}</span></a>`).join("")
+            : "<p>Nothing published yet.</p>");
+        return new Response(shell("Prompt packs", `<link rel="canonical" href="${origin}/p">`, body),
+          { headers: { "content-type": "text/html; charset=utf-8",
+                       "cache-control": "public, max-age=300" } });
+      }
+
+      const slug = decodeURIComponent(p.slice(3));
+      const a = live.find((x: any) => x.slug === slug);
+      if (!a) {
+        return new Response(shell("Not found", "", "<h1>Not found</h1>"),
+          { status: 404, headers: { "content-type": "text/html; charset=utf-8" } });
+      }
+
+      const self = `${origin}/p/${a.slug}`;
+      const buy = a.page_url || "";
+      const img = (a.gallery_images || [])[0] || "";
+      const faq = a.faq || [];
+      const price = Number(a.price || 0);
+
+      // Product + FAQPage JSON-LD. offers.url points at Whop checkout.
+      const ld: any = {
+        "@context": "https://schema.org", "@type": "Product",
+        name: a.title, description: a.subtitle || a.title,
+        ...(img ? { image: [img] } : {}),
+        brand: { "@type": "Brand", name: "The Algorithmic Daemon Concern" },
+        offers: { "@type": "Offer", price: price.toFixed(2), priceCurrency: "USD",
+                  availability: "https://schema.org/InStock",
+                  ...(buy ? { url: buy } : {}) },
+      };
+      const ldFaq = faq.length ? {
+        "@context": "https://schema.org", "@type": "FAQPage",
+        mainEntity: faq.map((f: any) => ({
+          "@type": "Question", name: f.question,
+          acceptedAnswer: { "@type": "Answer", text: f.answer } })),
+      } : null;
+
+      const head =
+        `<link rel="canonical" href="${self}">` +
+        `<meta name="description" content="${esc(a.subtitle || a.title)}">` +
+        `<meta property="og:type" content="product">` +
+        `<meta property="og:title" content="${esc(a.title)}">` +
+        `<meta property="og:description" content="${esc(a.subtitle || "")}">` +
+        `<meta property="og:url" content="${self}">` +
+        (img ? `<meta property="og:image" content="${esc(img)}">` : "") +
+        `<meta name="twitter:card" content="summary_large_image">` +
+        `<script type="application/ld+json">${JSON.stringify(ld)}</script>` +
+        (ldFaq ? `<script type="application/ld+json">${JSON.stringify(ldFaq)}</script>` : "");
+
+      const body =
+        `<h1>${esc(a.title)}</h1>` +
+        `<p class="sub">${esc(a.subtitle || "")}</p>` +
+        (img ? `<img class="hero" src="${esc(img)}" alt="${esc(a.title)}">` : "") +
+        (buy ? `<a class="cta" href="${esc(buy)}" rel="nofollow">
+                 ${price > 0 ? `Get it — $${price.toFixed(2)}` : "Get it free"}</a>` : "") +
+        (faq.length ? `<h2>FAQ</h2>` + faq.map((f: any) =>
+          `<details><summary>${esc(f.question)}</summary>
+           <div style="margin-top:10px;opacity:.85">${esc(f.answer)}</div></details>`).join("") : "");
+
+      return new Response(shell(`${a.title} — prompt pack`, head, body), {
+        headers: { "content-type": "text/html; charset=utf-8",
+                   "cache-control": "public, max-age=300",
+                   "x-pack": a.slug },
+      });
+    }
+
     if (p.startsWith("/experiences/") && request.method === "GET") {
       const expId = decodeURIComponent(p.slice("/experiences/".length));
       const qs = url.searchParams;
