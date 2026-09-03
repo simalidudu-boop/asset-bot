@@ -311,3 +311,70 @@ password works). Without them the channel is skipped silently.
 **Why these were missed earlier:** Blogger and Tumblr were supplied in the
 grain-works config dump rather than as explicit keys, and I did not carry them
 across. That was an oversight — both are now first-class channels.
+
+## KV quota incident — 2026-09-03
+
+**Cloudflare warned at 90% of the Workers KV free tier. Cause was our own
+dashboard, and it is fixed.**
+
+Actual usage: **900 writes / 1,000 daily limit** (reads were 2,972, nowhere
+near their much larger cap). So it was a *write* problem.
+
+Root cause: `/api/summary` appends a daily rollup point to the `history` key
+and wrote it **unconditionally on every call**. The dashboard auto-refreshed
+every 60s, so a single idle browser tab generated **~1,440 KV writes/day** —
+rewriting identical data, since the rollup only changes when the pipeline runs.
+
+Two fixes:
+
+1. **Write only when the rollup actually changed** (compare against the stored
+   point). Handful of writes/day instead of one per poll.
+2. **Dashboard poll 60s → 5 min**, cutting the request rate 5x as well.
+
+Verified live after deploy: 6 consecutive `/api/summary` calls produced
+**0 KV writes** (previously 6).
+
+Quota resets 00:00 UTC. Nothing was lost — writes beyond the cap would have
+429'd, but the cron locks and dashboard reads keep working regardless.
+
+## itch.io — no create API, butler only
+
+Confirmed exhaustively (2026-09-03): `POST`/`PUT` against `game/new`, `games`
+and `my-games` all return **405/404 "method not supported"**, and the HTML form
+at `itch.io/game/new` sits behind a **Cloudflare bot challenge**. The key is
+valid (`/me` → 200, user `simalidudu-boop`) but `/my-games` is **empty** — there
+is no page to publish to.
+
+The adapter now shells out to **butler** and pushes to an existing page:
+
+```
+ITCH_TARGET=simalidudu-boop/ai-prompt-packs:downloads
+```
+
+**One-time manual step:** create the page at <https://itch.io/game/new>
+(classification "assets" / "tools"). After that, butler pushes every future
+build automatically. Without `ITCH_TARGET` or the butler binary the channel is
+skipped silently.
+
+## Payhip — REMOVED
+
+Adapter, registry entry and workflow secrets deleted. Product creation returned
+`{"success": false, "message": null}` for every payload shape tried (JSON,
+form-encoded, `+product_type`, multipart with file). The API is read-only for
+products on this plan.
+
+## Buffer — rechecked, still 1 of 3
+
+Re-queried with the correct schema:
+
+```
+CONNECTED CHANNELS: 1
+   69fb5a1a5c4c051afa1829dc  twitter  disconnected=False locked=False  [OK]
+   twitter   -> CONNECTED
+   linkedin  -> NOT CONNECTED
+   pinterest -> NOT CONNECTED
+```
+
+X posting works today. LinkedIn and Pinterest must be connected inside the
+Buffer dashboard (Channels → Connect); no new API key is needed — the adapter
+loops over whatever ids are in `BUFFER_CHANNEL_IDS`.
