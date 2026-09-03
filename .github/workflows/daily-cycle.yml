@@ -72,7 +72,6 @@ jobs:
           ITCH_API_KEY: ${{ secrets.ITCH_API_KEY }}
           ITCH_USERNAME: ${{ secrets.ITCH_USERNAME }}
           SELLIX_API_KEY: ${{ secrets.SELLIX_API_KEY }}
-          SELLAPP_API_KEY: ${{ secrets.SELLAPP_API_KEY }}
           FETCHAPP_KEY: ${{ secrets.FETCHAPP_KEY }}
           FETCHAPP_TOKEN: ${{ secrets.FETCHAPP_TOKEN }}
           WEBFLOW_TOKEN: ${{ secrets.WEBFLOW_TOKEN }}

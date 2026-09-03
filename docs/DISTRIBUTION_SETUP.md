@@ -46,7 +46,6 @@ python3 dist_core.py retry-failed  # reset failed jobs to pending
 | `gumroad` | `GUMROAD_ACCESS_TOKEN` | Second storefront. |
 | `itch` | `ITCH_API_KEY`, `ITCH_USERNAME` | Flat form fields, not Rails-nested. |
 | `sellix` | `SELLIX_API_KEY` | Free storefront. |
-| `sellapp` | `SELLAPP_API_KEY` | Free storefront. |
 | `fetchapp` | `FETCHAPP_KEY`, `FETCHAPP_TOKEN` | XML + HTTP Basic. |
 | `webflow` | `WEBFLOW_TOKEN`, `WEBFLOW_COLLECTION_ID` | CMS items for SEO. |
 | `systemeio` | `SYSTEMEIO_API_KEY` | **Free email list** — the only channel we own. |
@@ -151,3 +150,45 @@ generating. Then set `WEBFLOW_TOKEN`.
 Also still needed: `WEBFLOW_COLLECTION_ID` must be a **Collection** id. The
 current value `6a9329e5d333ba445a5f158e` cannot be validated until the token
 can read — verify it with `GET /v2/sites/{site_id}/collections` once scoped.
+
+
+## Update — 2026-09-03 (second pass)
+
+### Webflow ✅ WORKING
+
+The third token was a **Site** token (the first two were *Workspace* tokens —
+`ws-` prefix — which is why CMS was never on the permissions list).
+
+Verified live:
+- `GET /v2/sites` → **200**, site `6a93284914fb1d22303a116c` "Grain Works"
+- `WEBFLOW_COLLECTION_ID=6a9329e5d333ba445a5f158e` → **valid**, the
+  "Grain Works" collection
+- Created item `6a9995aa4005faf541c0c556`, confirmed by independent read,
+  then deleted (204)
+
+The adapter's guessed field names (`summary`, `link`, `image`) were **wrong**.
+Real slugs: `project-summary`, `project-details`, `main-project-image`,
+`client`, `client-logo`, `services-rendered`, `featured-project`, `color`.
+
+It now reads the collection schema once, caches it, and **drops any field the
+collection does not define** — so pointing it at a different collection can
+never 400 the request.
+
+### Systeme.io ✅ WORKING (reuses tags)
+
+Now lists tags first and reuses an exact match, then `SYSTEMEIO_TAG`, then the
+first tag on the account — only creating one as a last resort. Avoids the free
+plan's "upgrade your plan to create more tags" cap entirely.
+Verified: `reused tag 'asset:zero-click-content-machine'`.
+
+### FetchApp ❌ their API is down
+
+Every v3 endpoint returns **500 with a zero-byte body**, including with no
+auth at all. `www.fetchapp.com` returns 200, so the marketing site is up and
+the API is not. Nothing to fix on our side; the adapter treats 5xx as
+retryable, so it will heal itself when they recover.
+
+### Sell.app — REMOVED
+
+Adapter, registry line and workflow secret deleted. Products created via API
+returned 201 but never persisted.

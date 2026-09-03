@@ -245,43 +245,6 @@ def ch_sellix(a: dict) -> dict:
     return from_http(code, text)
 
 
-# ---------------------------------------------------------------- Sell.app ---
-def ch_sellapp(a: dict) -> dict:
-    title, blurb, url, _ = _asset_bits(a)
-    code, text = http("POST", "https://sell.app/api/v2/products",
-                      headers={"Authorization": f"Bearer {env('SELLAPP_API_KEY')}",
-                               "Accept": "application/json"},
-                      json_body={"title": title[:150],
-                                 # min 5 chars, else 422
-                                 "description": (blurb + (f"\n\n{url}" if url else "")
-                                                 or "Digital download.")[:2000],
-                                 "visibility": "PUBLIC",
-                                 # NOT `type` — that is always "invalid".
-                                 # serials | service | dynamic
-                                 "deliverables_type": "service",
-                                 "currency": "USD",
-                                 "price": {"amount": str(a.get("price") or 0),
-                                           "currency": "USD"}})
-    b = jbody(text)
-    if code in (200, 201):
-        d = b.get("data") or b
-        pid, slug = str(d.get("id", "")), d.get("slug") or ""
-        store = env("SELLAPP_STORE") or ""
-        # VERIFY: sell.app returns 201 for products that do not actually
-        # persist (observed 2026-09-03 — GET /products/{id} then 404s and the
-        # list stays empty). Never trust the create response alone.
-        vcode, _ = http("GET", f"https://sell.app/api/v2/products/{pid}",
-                        headers={"Authorization": f"Bearer {env('SELLAPP_API_KEY')}",
-                                 "Accept": "application/json"})
-        if vcode != 200:
-            return result(False, permanent=True,
-                          error=f"created id={pid} but GET returned {vcode} — "
-                                "product did not persist (store likely needs "
-                                "setup/verification in the sell.app dashboard)")
-        return result(True, pid,
-                      f"https://{store}/product/{slug}" if store and slug else "")
-    return from_http(code, text)
-
 
 # --------------------------------------------------------------- FetchApp ---
 def ch_fetchapp(a: dict) -> dict:
@@ -304,16 +267,46 @@ def ch_fetchapp(a: dict) -> dict:
 
 
 # ----------------------------------------------------------- Webflow CMS ---
+_WF_SCHEMA: dict[str, set] = {}
+
+
+def _webflow_fields(cid: str) -> set:
+    """Field slugs that actually exist on the collection (cached)."""
+    if cid in _WF_SCHEMA:
+        return _WF_SCHEMA[cid]
+    code, text = http("GET", f"https://api.webflow.com/v2/collections/{cid}",
+                      headers={"Authorization": f"Bearer {env('WEBFLOW_TOKEN')}",
+                               "accept": "application/json"})
+    got = set()
+    if code == 200:
+        got = {f.get("slug") for f in (jbody(text).get("fields") or [])}
+    _WF_SCHEMA[cid] = got
+    return got
+
+
+def _webflow_filter(cid: str, fields: dict) -> dict:
+    """Drop fields the collection does not define. name/slug always kept."""
+    known = _webflow_fields(cid)
+    if not known:
+        return fields
+    return {k: v for k, v in fields.items()
+            if k in known or k in ("name", "slug")}
+
+
 def ch_webflow(a: dict) -> dict:
     title, blurb, url, image = _asset_bits(a)
     cid = env("WEBFLOW_COLLECTION_ID")
+    # Field slugs are per-collection. These match the live "Grain Works"
+    # collection; anything unknown is dropped rather than 400-ing the request.
     fields = {"name": title[:250], "slug": (a.get("slug") or "")[:250]}
     if blurb:
-        fields["summary"] = blurb[:1000]
-    if url:
-        fields["link"] = url
+        fields["project-summary"] = blurb[:1000]
+    body = _markdown(a)
+    if body:
+        fields["project-details"] = body[:20000]
     if image:
-        fields["image"] = image
+        fields["main-project-image"] = {"url": image}
+    fields = _webflow_filter(cid, fields)
     code, text = http("POST",
                       f"https://api.webflow.com/v2/collections/{cid}/items",
                       headers={"Authorization": f"Bearer {env('WEBFLOW_TOKEN')}",
@@ -341,13 +334,31 @@ def ch_systemeio(a: dict) -> dict:
     any other 422 is a real validation error.
     """
     title, _, _, _ = _asset_bits(a)
+    hdr = {"X-API-Key": env("SYSTEMEIO_API_KEY"),
+           "Content-Type": "application/json"}
+    want = f"asset:{(a.get('slug') or title)[:60]}"
+
+    # The free plan caps tag creation ("Please upgrade your plan to create
+    # more tags"), so prefer an existing tag: exact match, else a configured
+    # fallback, else the first tag on the account.
+    code, text = http("GET", "https://api.systeme.io/api/tags", headers=hdr)
+    if code == 200:
+        tags = jbody(text).get("items") or []
+        by_name = {str(t.get("name", "")).lower(): t for t in tags}
+        hit = by_name.get(want.lower())
+        if not hit:
+            fb = env("SYSTEMEIO_TAG").lower()
+            hit = by_name.get(fb) if fb else None
+        if not hit and tags:
+            hit = tags[0]
+        if hit:
+            return result(True, str(hit.get("id", "")), "",
+                          f"reused tag {hit.get('name')!r}")
+
     code, text = http("POST", "https://api.systeme.io/api/tags",
-                      headers={"X-API-Key": env("SYSTEMEIO_API_KEY"),
-                               "Content-Type": "application/json"},
-                      json_body={"name": f"asset:{(a.get('slug') or title)[:60]}"})
+                      headers=hdr, json_body={"name": want})
     if code in (200, 201):
-        b = jbody(text)
-        return result(True, str(b.get("id", "")))
+        return result(True, str(jbody(text).get("id", "")))
     if code == 422 and "duplicate" in text.lower():
         return result(True, "", "", "already exists")
     return result(False, error=f"http_{code}: {text[:150]}",
@@ -427,7 +438,6 @@ register("discord",   ch_discord,   ["DISCORD_PROMO_WEBHOOKS"])
 register("gumroad",   ch_gumroad,   ["GUMROAD_ACCESS_TOKEN"])
 register("itch",      ch_itch,      ["ITCH_API_KEY", "ITCH_USERNAME"])
 register("sellix",    ch_sellix,    ["SELLIX_API_KEY"])
-register("sellapp",   ch_sellapp,   ["SELLAPP_API_KEY"])
 register("fetchapp",  ch_fetchapp,  ["FETCHAPP_KEY", "FETCHAPP_TOKEN"])
 register("webflow",   ch_webflow,   ["WEBFLOW_TOKEN", "WEBFLOW_COLLECTION_ID"])
 register("systemeio", ch_systemeio, ["SYSTEMEIO_API_KEY"])
