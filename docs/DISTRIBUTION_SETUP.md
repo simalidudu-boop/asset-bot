@@ -192,3 +192,56 @@ retryable, so it will heal itself when they recover.
 
 Adapter, registry line and workflow secret deleted. Products created via API
 returned 201 but never persisted.
+
+
+## Canonical pack pages + live channel test — 2026-09-03
+
+### /p/:slug shipped
+
+Whop product pages declare `canonical` = the **store root**, not themselves —
+verified on both products. That tells Google not to index the product page, so
+syndicating with a Whop `canonical_url` throws the ranking signal away.
+
+The Worker now serves a **thin canonical page per pack**:
+
+- `/p/:slug` — self-canonicalising, `Product` + `FAQPage` JSON-LD, OG tags,
+  CTA linking **straight to Whop checkout**
+- `/p` index, `/sitemap.xml`, `/robots.txt`
+
+It is deliberately **not in the buy path** — no friction is added for buyers.
+Its only job is to be the honest `canonical_url` target for syndication.
+All adapters now point there via `canonical_url()` (override with
+`PACK_PAGE_BASE`).
+
+### Live results — 6 channels posted
+
+| Channel | Result |
+|---|---|
+| **dev.to** | ✅ live, canonical correctly points at `/p/zero-click-content-machine` |
+| **bluesky** | ✅ live, post verified in the public feed |
+| **discord** | ✅ posted to the webhook |
+| **webflow** | ✅ CMS item created |
+| **systeme.io** | ✅ reused existing tag |
+| **filepost** | ✅ CDN mirror |
+| itch | ❌ 403 Cloudflare challenge — bot-protected, needs the butler API |
+| fetchapp | ⏳ still 500 (their outage) — retrying |
+| payhip | ❌ needs a file upload — see below |
+
+### Payhip
+
+Auth header is **`payhip-api-key`** (a Bearer token 401s). Form-encoded plus
+`product_type=digital` clears the 400, but the API then answers
+`{"success": false, "message": null}` — creation appears to require an
+uploaded file. Marked permanent so it does not burn retries.
+
+### Buffer — authenticates, but 0 channels
+
+Token is valid (`account.id 69fb59be6b533428adb722b7`) but
+`account.channels` is **empty**, and the provided channel id
+`69fb5a1a5c4c051afa1829dc` is not on the account. Connect X / LinkedIn /
+Pinterest inside Buffer first, then re-read the ids.
+
+### Hugging Face
+
+Token valid (user `SharkSkin`). No adapter yet — HF Datasets/Spaces would be a
+good free host for the pack files. Not wired.

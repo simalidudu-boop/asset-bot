@@ -58,6 +58,11 @@ jobs:
           DIST_POSTING_MODE: ${{ secrets.DIST_POSTING_MODE }}
           FILEPOST_API_KEY: ${{ secrets.FILEPOST_API_KEY }}
           DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
+          PAYHIP_API_KEY: ${{ secrets.PAYHIP_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          PACK_PAGE_BASE: ${{ secrets.PACK_PAGE_BASE }}
+          SYSTEMEIO_TAG: ${{ secrets.SYSTEMEIO_TAG }}
+          BUFFER_ORG_ID: ${{ secrets.BUFFER_ORG_ID }}
           HASHNODE_PAT: ${{ secrets.HASHNODE_PAT }}
           HASHNODE_PUBLICATION_ID: ${{ secrets.HASHNODE_PUBLICATION_ID }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

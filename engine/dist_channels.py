@@ -20,11 +20,25 @@ from dist_core import env, from_http, http, jbody, register, result
 UA = "asset-bot/1.0"
 
 
+def canonical_url(a: dict) -> str:
+    """Our own /p/:slug page — the self-canonicalising SEO target.
+
+    Whop product pages declare canonical = the STORE ROOT, so syndicated
+    copies must NOT point there or the ranking signal is thrown away.
+    Buyers still go straight to Whop via the CTA on that page; this only
+    changes where search engines are told the content lives.
+    """
+    base = env("PACK_PAGE_BASE") or "https://asset-bot-edge.simalidudu.workers.dev"
+    slug = a.get("slug") or ""
+    return f"{base.rstrip('/')}/p/{slug}" if slug else ""
+
+
 def _asset_bits(a: dict) -> tuple[str, str, str, str]:
     """(title, blurb, url, image) — the four things every channel wants."""
     title = a.get("title") or a.get("slug") or "New release"
     blurb = (a.get("description") or a.get("subtitle") or "").strip()
-    url = a.get("page_url") or a.get("cdn_url") or a.get("landing_url") or ""
+    url = (canonical_url(a) or a.get("page_url")
+           or a.get("cdn_url") or a.get("landing_url") or "")
     imgs = a.get("gallery_images") or []
     image = imgs[0] if imgs else (a.get("image_url") or "")
     return title, blurb, url, image
@@ -426,6 +440,39 @@ def ch_buffer(a: dict) -> dict:
                   permanent=code in (401, 403))
 
 
+
+# ----------------------------------------------------------------- Payhip ---
+def ch_payhip(a: dict) -> dict:
+    """NOTE: auth is the `payhip-api-key` header — a Bearer token 401s."""
+    title, blurb, url, image = _asset_bits(a)
+    body = {"name": title[:150],
+            "description": (blurb + (f"\n\n{url}" if url else ""))[:2000],
+            "price": float(a.get("price") or 0), "currency": "USD"}
+    if image:
+        body["image"] = image
+    form = {"name": title[:150], "price": str(a.get("price") or 0),
+            "currency": "USD", "product_type": "digital",
+            "description": (blurb + (f"\n\n{url}" if url else ""))[:2000]}
+    code, text = http("POST", "https://payhip.com/api/v1/product",
+                      headers={"payhip-api-key": env("PAYHIP_API_KEY")},
+                      form=form)
+    b = jbody(text)
+    if code in (200, 201) and b.get("success"):
+        d = b.get("data") or b
+        return result(True, str(d.get("id", "")), str(d.get("url", "")))
+    # Verified 2026-09-03: form-encoded + product_type clears the 400, but the
+    # API answers {"success": false, "message": null} — Payhip appears to
+    # require an uploaded FILE to create a product, which this endpoint does
+    # not accept. Treat as permanent so we do not burn retries.
+    if code == 200 and b.get("success") is False:
+        return result(False, permanent=True,
+                      error="payhip returned success:false with no message — "
+                            "product creation likely needs a file upload "
+                            "(multipart), unsupported by /api/v1/product")
+    return result(False, error=f"http_{code}: {text[:150]}",
+                  permanent=code in (400, 401, 403, 422))
+
+
 # ---------------------------------------------------------------- registry ---
 # Adding a channel = an adapter above + one line here. Nothing else changes.
 # Channels whose keys are absent are skipped silently by dist_core.has_keys.
@@ -442,4 +489,5 @@ register("fetchapp",  ch_fetchapp,  ["FETCHAPP_KEY", "FETCHAPP_TOKEN"])
 register("webflow",   ch_webflow,   ["WEBFLOW_TOKEN", "WEBFLOW_COLLECTION_ID"])
 register("systemeio", ch_systemeio, ["SYSTEMEIO_API_KEY"])
 register("archive",   ch_archive,   ["IA_ACCESS_KEY", "IA_SECRET_KEY"])
+register("payhip",    ch_payhip,    ["PAYHIP_API_KEY"])
 register("buffer",    ch_buffer,    ["BUFFER_ACCESS_TOKEN", "BUFFER_CHANNEL_IDS"])
