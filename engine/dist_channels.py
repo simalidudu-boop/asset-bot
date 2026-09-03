@@ -227,16 +227,58 @@ def ch_gumroad(a: dict) -> dict:
 
 # ---------------------------------------------------------------- itch.io ---
 def ch_itch(a: dict) -> dict:
-    """Flat form fields (NOT Rails-nested) — per grain-works F7."""
+    """Push a build to an EXISTING itch.io page via butler.
+
+    itch.io has NO create-page API (verified 2026-09-03: POST/PUT against
+    game/new, games and my-games all return 405/404, and the HTML form at
+    itch.io/game/new is behind a Cloudflare bot challenge). The page must be
+    created once by hand; butler then pushes builds to it forever.
+
+    Set ITCH_TARGET to "user/game:channel" (e.g. "simalidudu-boop/ai-packs:web").
+    Without it this channel is skipped, so it can never fail a run.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+    import urllib.request as _u
+
+    target = env("ITCH_TARGET")
+    if not target:
+        return result(False, permanent=True,
+                      error="ITCH_TARGET not set (user/game:channel). itch has "
+                            "no create-page API — make the page once by hand.")
+    butler = shutil.which("butler") or env("BUTLER_PATH")
+    if not butler:
+        return result(False, permanent=True,
+                      error="butler CLI not installed; itch has no HTTP upload API")
+
     title, blurb, url, _ = _asset_bits(a)
-    code, text = http("POST", "https://itch.io/game/new",
-                      headers={"Authorization": f"Bearer {env('ITCH_API_KEY')}"},
-                      form={"title": title[:100],
-                            "short_text": blurb[:200],
-                            "classification": "assets",
-                            "user_id": env("ITCH_USERNAME"),
-                            "external_link": url})
-    return from_http(code, text)
+    src = a.get("deliverable_url") or ""
+    with tempfile.TemporaryDirectory() as d:
+        from pathlib import Path as _P
+        out = _P(d) / "pack"
+        out.mkdir()
+        (out / "README.txt").write_text(f"{title}\n\n{blurb}\n\n{url}\n")
+        if src:
+            try:
+                with _u.urlopen(src, timeout=120) as r, \
+                     open(out / src.split("/")[-1][:80], "wb") as f:
+                    f.write(r.read())
+            except Exception:  # noqa: BLE001  README-only build is still valid
+                pass
+        try:
+            pr = subprocess.run([butler, "push", str(out), target],
+                                capture_output=True, text=True, timeout=600,
+                                env={**os.environ,
+                                     "BUTLER_API_KEY": env("ITCH_API_KEY")})
+        except Exception as e:  # noqa: BLE001
+            return result(False, error=f"butler failed: {e}"[:200])
+    if pr.returncode == 0:
+        user = target.split("/")[0]
+        game = target.split("/")[1].split(":")[0]
+        return result(True, target, f"https://{user}.itch.io/{game}")
+    return result(False, error=(pr.stderr or pr.stdout)[:200],
+                  permanent="no such" in (pr.stderr or "").lower())
 
 
 # ----------------------------------------------------------------- Sellix ---
@@ -455,32 +497,6 @@ def ch_buffer(a: dict) -> dict:
 
 
 
-# ----------------------------------------------------------------- Payhip ---
-def ch_payhip(a: dict) -> dict:
-    """NOTE: auth header is `payhip-api-key` — a Bearer token 401s."""
-    title, blurb, url, image = _asset_bits(a)
-    form = {"name": title[:150], "price": str(a.get("price") or 0),
-            "currency": "USD", "product_type": "digital",
-            "description": (blurb + (f"\n\n{url}" if url else ""))[:2000]}
-    code, text = http("POST", "https://payhip.com/api/v1/product",
-                      headers={"payhip-api-key": env("PAYHIP_API_KEY")},
-                      form=form)
-    b = jbody(text)
-    if code in (200, 201) and b.get("success"):
-        d = b.get("data") or b
-        return result(True, str(d.get("id", "")), str(d.get("url", "")))
-    # Verified 2026-09-03: form-encoded AND multipart-with-file both return
-    # {"success": false, "message": null}. The public API appears to be
-    # read-only for products on this plan. Permanent so we don't burn retries.
-    if code == 200 and b.get("success") is False:
-        return result(False, permanent=True,
-                      error="payhip returned success:false with no message — "
-                            "product creation appears unsupported by "
-                            "/api/v1/product (read-only API)")
-    return result(False, error=f"http_{code}: {text[:150]}",
-                  permanent=code in (400, 401, 403, 422))
-
-
 # ------------------------------------------------------ Hugging Face Hub ---
 def ch_huggingface(a: dict) -> dict:
     """Create/refresh a dataset repo and commit a README for the pack.
@@ -625,13 +641,12 @@ register("telegram",  ch_telegram,  ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHANNEL_ID"
 register("bluesky",   ch_bluesky,   ["BSKY_HANDLE", "BSKY_APP_PASSWORD"])
 register("discord",   ch_discord,   ["DISCORD_PROMO_WEBHOOKS"])
 register("gumroad",   ch_gumroad,   ["GUMROAD_ACCESS_TOKEN"])
-register("itch",      ch_itch,      ["ITCH_API_KEY", "ITCH_USERNAME"])
+register("itch",      ch_itch,      ["ITCH_API_KEY", "ITCH_TARGET"])
 register("sellix",    ch_sellix,    ["SELLIX_API_KEY"])
 register("fetchapp",  ch_fetchapp,  ["FETCHAPP_KEY", "FETCHAPP_TOKEN"])
 register("webflow",   ch_webflow,   ["WEBFLOW_TOKEN", "WEBFLOW_COLLECTION_ID"])
 register("systemeio", ch_systemeio, ["SYSTEMEIO_API_KEY"])
 register("archive",   ch_archive,   ["IA_ACCESS_KEY", "IA_SECRET_KEY"])
-register("payhip",    ch_payhip,    ["PAYHIP_API_KEY"])
 register("huggingface", ch_huggingface, ["HF_TOKEN"])
 register("tumblr",    ch_tumblr,    ["TUMBLR_CONSUMER_KEY", "TUMBLR_CONSUMER_SECRET",
                                      "TUMBLR_TOKEN", "TUMBLR_TOKEN_SECRET"])

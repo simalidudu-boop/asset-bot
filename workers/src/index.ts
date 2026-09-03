@@ -330,9 +330,15 @@ export default {
           runsFail: wr.filter((r: any) => r.conclusion === "failure").length,
         };
         const i = hist.findIndex((x) => x.d === today);
+        // KV FREE TIER IS 1,000 WRITES/DAY. The dashboard polls /api/summary
+        // every 60s, so writing unconditionally burned ~1,440 writes/day from
+        // a single idle tab and hit 90% of the quota. Only write when the
+        // rollup actually CHANGED (or the day is new) — that is a handful of
+        // writes/day instead of one per poll.
+        const changed = i < 0 || JSON.stringify(hist[i]) !== JSON.stringify(point);
         if (i >= 0) hist[i] = point; else hist.push(point);
         while (hist.length > 60) hist.shift();
-        await env.BOT_STATE.put("history", JSON.stringify(hist));
+        if (changed) await env.BOT_STATE.put("history", JSON.stringify(hist));
       } catch { /* charts are best-effort */ }
 
       return json({

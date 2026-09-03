@@ -58,7 +58,6 @@ jobs:
           DIST_POSTING_MODE: ${{ secrets.DIST_POSTING_MODE }}
           FILEPOST_API_KEY: ${{ secrets.FILEPOST_API_KEY }}
           DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
-          PAYHIP_API_KEY: ${{ secrets.PAYHIP_API_KEY }}
           HF_USER: ${{ secrets.HF_USER }}
           TUMBLR_BLOG_URL: ${{ secrets.TUMBLR_BLOG_URL }}
           TUMBLR_CONSUMER_KEY: ${{ secrets.TUMBLR_CONSUMER_KEY }}

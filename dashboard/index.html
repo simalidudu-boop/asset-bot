@@ -572,7 +572,9 @@ async function purgeOrphans(){
 
 restoreMock();
 refreshAll();
-setInterval(refreshAll,60000);
+// 5 min, not 60s: each refresh hits /api/summary which can write KV,
+// and the KV free tier allows only 1,000 writes/day.
+setInterval(refreshAll,300000);
 </script>
 </body>
 </html>
