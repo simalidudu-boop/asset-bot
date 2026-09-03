@@ -122,7 +122,32 @@ without reading it back.
 | Channel | Action |
 |---|---|
 | systemeio | upgrade plan, or reuse an existing tag instead of creating one |
-| webflow | regenerate the token with **`cms:read` + `cms:write`** scopes |
+| webflow | create a **NEW** token with `cms:read`+`cms:write` — scopes are fixed at creation and cannot be edited (2nd token also had none) |
 | sellapp | finish store setup/verification in the dashboard |
 | fetchapp | their API is 500-ing; retry later (adapter already treats 5xx as retryable) |
 | sellix | test from a normal network — sandbox DNS cannot resolve it |
+
+
+## Webflow — scopes are set at token creation (2026-09-03)
+
+The second token (`ws-9a20...adba`) had **zero scopes**, same as the first.
+Probed endpoint by endpoint:
+
+| Endpoint | Missing scope |
+|---|---|
+| `/v2/sites` | `sites:read` |
+| `/v2/collections/{id}` | `cms:read` |
+| `/v2/collections/{id}/items` (POST) | `cms:write` |
+| `/v2/token/authorized_by` | `authorized_user:read` |
+
+Per Webflow's docs, scopes are **registered when the token is created** and
+cannot be granted afterwards. Connecting the site to GitHub does not affect
+Data API scopes — that is Webflow's code-sync feature, a different system.
+
+**Fix:** Site settings → **Apps & integrations** → **API access** → generate a
+new Site token, and tick **CMS read + CMS write** on the creation screen before
+generating. Then set `WEBFLOW_TOKEN`.
+
+Also still needed: `WEBFLOW_COLLECTION_ID` must be a **Collection** id. The
+current value `6a9329e5d333ba445a5f158e` cannot be validated until the token
+can read — verify it with `GET /v2/sites/{site_id}/collections` once scoped.

@@ -320,6 +320,16 @@ def ch_webflow(a: dict) -> dict:
                                "accept": "application/json"},
                       json_body={"isArchived": False, "isDraft": False,
                                  "fieldData": fields})
+    # Webflow scopes are fixed AT TOKEN CREATION and cannot be added later.
+    # A scope 403 therefore means "make a new token", not "retry" — say so
+    # instead of surfacing a bare OAuthForbidden.
+    if code == 403 and "missing_scopes" in text:
+        return result(False, permanent=True,
+                      error="token lacks cms:read + cms:write. Webflow scopes "
+                            "cannot be edited after creation — create a NEW "
+                            "Site API token (Site settings -> Apps & "
+                            "integrations -> API access) with both CMS boxes "
+                            "ticked.")
     return from_http(code, text)
 
 
