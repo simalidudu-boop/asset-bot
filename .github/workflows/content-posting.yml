@@ -59,6 +59,17 @@ jobs:
           FILEPOST_API_KEY: ${{ secrets.FILEPOST_API_KEY }}
           DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
           PAYHIP_API_KEY: ${{ secrets.PAYHIP_API_KEY }}
+          HF_USER: ${{ secrets.HF_USER }}
+          TUMBLR_BLOG_URL: ${{ secrets.TUMBLR_BLOG_URL }}
+          TUMBLR_CONSUMER_KEY: ${{ secrets.TUMBLR_CONSUMER_KEY }}
+          TUMBLR_CONSUMER_SECRET: ${{ secrets.TUMBLR_CONSUMER_SECRET }}
+          TUMBLR_TOKEN: ${{ secrets.TUMBLR_TOKEN }}
+          TUMBLR_TOKEN_SECRET: ${{ secrets.TUMBLR_TOKEN_SECRET }}
+          BLOGGER_EMAIL: ${{ secrets.BLOGGER_EMAIL }}
+          BLOGGER_SMTP_HOST: ${{ secrets.BLOGGER_SMTP_HOST }}
+          BLOGGER_SMTP_USER: ${{ secrets.BLOGGER_SMTP_USER }}
+          BLOGGER_SMTP_PASS: ${{ secrets.BLOGGER_SMTP_PASS }}
+          BLOGGER_SMTP_PORT: ${{ secrets.BLOGGER_SMTP_PORT }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           PACK_PAGE_BASE: ${{ secrets.PACK_PAGE_BASE }}
           SYSTEMEIO_TAG: ${{ secrets.SYSTEMEIO_TAG }}

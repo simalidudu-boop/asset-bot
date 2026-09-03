@@ -404,52 +404,61 @@ def ch_archive(a: dict) -> dict:
 def ch_buffer(a: dict) -> dict:
     """Buffer is a SANCTIONED client of X / LinkedIn / Pinterest / Mastodon.
 
-    Routing through it gives those platforms' reach without us being the
-    party that breaks their automation terms. See docs/DISTRIBUTION_V2.md.
+    Routing through it gives those platforms' reach without us being the party
+    that breaks their automation terms.
+
+    Schema notes (introspected live 2026-09-03 — the docs are wrong):
+      * `channelId` is SINGULAR and required — there is no `channelIds`.
+        One post per channel, so we loop.
+      * `mode` (ShareMode): addToQueue | customScheduled | shareNext | shareNow
+      * `schedulingType`: automatic | notification
+      * `needsApproval` and `assets` are required.
+      * assets is [AssetInput] = {image:{url}} / {video:{url}} / {document:{url}}
+        — NOT {type, source}.
     """
     title, blurb, url, image = _asset_bits(a)
-    text_body = f"{title}\n\n{blurb}"[:260] + (f"\n\n{url}" if url else "")
+    body = f"{title} — {blurb}"[:240] + (f" {url}" if url else "")
     ids = [i.strip() for i in env("BUFFER_CHANNEL_IDS").split(",") if i.strip()]
     if not ids:
         return result(False, error="no BUFFER_CHANNEL_IDS", permanent=True)
+
     mutation = ("mutation CreatePost($input: CreatePostInput!){createPost(input:$input){"
-                "... on PostActionSuccess{post{id}}"
+                "... on PostActionSuccess{post{id status}}"
                 "... on NotFoundError{message}"
                 "... on UnauthorizedError{message}"
                 "... on LimitReachedError{message}"
                 "... on InvalidInputError{message}"
                 "... on UnexpectedError{message}}}")
-    inp = {"channelIds": ids, "text": text_body}
-    if image:
-        inp["assets"] = [{"type": "image", "source": image}]
-    code, text = http("POST", "https://api.buffer.com/graphql",
-                      headers={"Authorization": f"Bearer {env('BUFFER_ACCESS_TOKEN')}"},
-                      json_body={"query": mutation, "variables": {"input": inp}})
-    b = jbody(text)
-    if code == 200 and not b.get("errors"):
+
+    posted, last = [], ""
+    for cid in ids:
+        inp = {"channelId": cid, "text": body, "mode": "addToQueue",
+               "schedulingType": "automatic", "needsApproval": False,
+               # AssetInput = {document|image|video}; ImageAssetInput={url,...}
+               "assets": ([{"image": {"url": image}}] if image else [])}
+        code, text = http("POST", "https://api.buffer.com/graphql",
+                          headers={"Authorization": f"Bearer {env('BUFFER_ACCESS_TOKEN')}"},
+                          json_body={"query": mutation, "variables": {"input": inp}})
+        b = jbody(text)
         cp = ((b.get("data") or {}).get("createPost")) or {}
-        if cp.get("post"):
-            return result(True, str((cp["post"] or {}).get("id", "")))
-        msg = cp.get("message") or "unknown buffer error"
-        # LimitReached is temporary; auth/validation are not.
-        perm = "limit" not in str(msg).lower()
-        return result(False, error=str(msg), permanent=perm)
-    errs = b.get("errors") or []
-    return result(False,
-                  error=str(errs[0].get("message") if errs else f"http_{code}"),
-                  permanent=code in (401, 403))
+        if code == 200 and cp.get("post"):
+            posted.append(str(cp["post"].get("id", "")))
+        else:
+            errs = b.get("errors") or []
+            last = str(cp.get("message")
+                       or (errs[0].get("message") if errs else f"http_{code}"))
+    if posted:
+        return result(True, ",".join(posted))
+    # "limit reached" is temporary; auth/validation are not.
+    return result(False, error=last or "buffer post failed",
+                  permanent="limit" not in last.lower())
 
 
 
 # ----------------------------------------------------------------- Payhip ---
 def ch_payhip(a: dict) -> dict:
-    """NOTE: auth is the `payhip-api-key` header — a Bearer token 401s."""
+    """NOTE: auth header is `payhip-api-key` — a Bearer token 401s."""
     title, blurb, url, image = _asset_bits(a)
-    body = {"name": title[:150],
-            "description": (blurb + (f"\n\n{url}" if url else ""))[:2000],
-            "price": float(a.get("price") or 0), "currency": "USD"}
-    if image:
-        body["image"] = image
     form = {"name": title[:150], "price": str(a.get("price") or 0),
             "currency": "USD", "product_type": "digital",
             "description": (blurb + (f"\n\n{url}" if url else ""))[:2000]}
@@ -460,17 +469,150 @@ def ch_payhip(a: dict) -> dict:
     if code in (200, 201) and b.get("success"):
         d = b.get("data") or b
         return result(True, str(d.get("id", "")), str(d.get("url", "")))
-    # Verified 2026-09-03: form-encoded + product_type clears the 400, but the
-    # API answers {"success": false, "message": null} — Payhip appears to
-    # require an uploaded FILE to create a product, which this endpoint does
-    # not accept. Treat as permanent so we do not burn retries.
+    # Verified 2026-09-03: form-encoded AND multipart-with-file both return
+    # {"success": false, "message": null}. The public API appears to be
+    # read-only for products on this plan. Permanent so we don't burn retries.
     if code == 200 and b.get("success") is False:
         return result(False, permanent=True,
                       error="payhip returned success:false with no message — "
-                            "product creation likely needs a file upload "
-                            "(multipart), unsupported by /api/v1/product")
+                            "product creation appears unsupported by "
+                            "/api/v1/product (read-only API)")
     return result(False, error=f"http_{code}: {text[:150]}",
                   permanent=code in (400, 401, 403, 422))
+
+
+# ------------------------------------------------------ Hugging Face Hub ---
+def ch_huggingface(a: dict) -> dict:
+    """Create/refresh a dataset repo and commit a README for the pack.
+
+    Free, permanent, high-authority. NOTE: the old
+    `/upload/{rev}/{path}` endpoint is **retired (410)** — you must use the
+    NDJSON `/commit/{rev}` endpoint.
+    """
+    title, blurb, url, image = _asset_bits(a)
+    user = env("HF_USER") or "SharkSkin"
+    repo = f"{user}/assetbot-{(a.get('slug') or 'pack')[:50]}"
+    hdr = {"Authorization": f"Bearer {env('HF_TOKEN')}"}
+
+    # idempotent: 409 just means it already exists
+    code, text = http("POST", "https://huggingface.co/api/repos/create",
+                      headers=hdr,
+                      json_body={"type": "dataset",
+                                 "name": f"assetbot-{(a.get('slug') or 'pack')[:50]}",
+                                 "private": False})
+    if code not in (200, 201, 409):
+        return result(False, error=f"repo create http_{code}: {text[:120]}",
+                      permanent=code in (400, 401, 403))
+
+    md = f"# {title}\n\n{blurb}\n\n"
+    if image:
+        md += f"![{title}]({image})\n\n"
+    for f in (a.get("faq") or []):
+        md += f"**{f.get('question','')}**\n\n{f.get('answer','')}\n\n"
+    if url:
+        md += f"[Get it here]({url})\n"
+
+    lines = [
+        json.dumps({"key": "header", "value": {"summary": f"publish {title}"}}),
+        json.dumps({"key": "file", "value": {
+            "path": "README.md", "encoding": "base64",
+            "content": base64.b64encode(md.encode()).decode()}}),
+    ]
+    code, text = http("POST",
+                      f"https://huggingface.co/api/datasets/{repo}/commit/main",
+                      headers={**hdr, "Content-Type": "application/x-ndjson"},
+                      data=("\n".join(lines) + "\n").encode())
+    if code == 200 and jbody(text).get("success"):
+        return result(True, repo, f"https://huggingface.co/datasets/{repo}")
+    return result(False, error=f"commit http_{code}: {text[:150]}",
+                  permanent=code in (400, 401, 403, 404))
+
+
+# ----------------------------------------------------------------- Tumblr ---
+def _oauth1_header(method: str, url: str, params: dict) -> str:
+    """Minimal OAuth 1.0a HMAC-SHA1 signer (Tumblr needs it; no SDK here)."""
+    import hashlib
+    import hmac
+    import random
+    import string
+    import time as _t
+    from urllib.parse import quote, urlencode
+
+    oauth = {
+        "oauth_consumer_key": env("TUMBLR_CONSUMER_KEY"),
+        "oauth_token": env("TUMBLR_TOKEN"),
+        "oauth_signature_method": "HMAC-SHA1",
+        "oauth_timestamp": str(int(_t.time())),
+        "oauth_nonce": "".join(random.choices(string.ascii_letters + string.digits, k=32)),
+        "oauth_version": "1.0",
+    }
+    allp = {**params, **oauth}
+    norm = urlencode(sorted((k, str(v)) for k, v in allp.items()), quote_via=quote)
+    base = "&".join([method.upper(), quote(url, safe=""), quote(norm, safe="")])
+    key = (quote(env("TUMBLR_CONSUMER_SECRET"), safe="") + "&"
+           + quote(env("TUMBLR_TOKEN_SECRET"), safe=""))
+    sig = base64.b64encode(
+        hmac.new(key.encode(), base.encode(), hashlib.sha1).digest()).decode()
+    oauth["oauth_signature"] = sig
+    return "OAuth " + ", ".join(f'{quote(k, safe="")}="{quote(v, safe="")}"'
+                                for k, v in oauth.items())
+
+
+def ch_tumblr(a: dict) -> dict:
+    title, blurb, url, image = _asset_bits(a)
+    blog = env("TUMBLR_BLOG_URL") or "affiliatemonk.tumblr.com"
+    api = f"https://api.tumblr.com/v2/blog/{blog}/post"
+    body = f"{blurb}<br><br><a href=\"{url}\">Get it here</a>" if url else blurb
+    params = {"type": "text", "title": title, "body": body,
+              "tags": ",".join((a.get("keywords") or ["ai", "productivity"])[:5]),
+              "state": "published"}
+    code, text = http("POST", api, headers={
+        "Authorization": _oauth1_header("POST", api, params),
+        "Content-Type": "application/x-www-form-urlencoded"}, form=params)
+    b = jbody(text)
+    if code in (200, 201):
+        pid = str(((b.get("response") or {}).get("id")) or "")
+        return result(True, pid, f"https://{blog}/post/{pid}" if pid else "")
+    msg = (b.get("meta") or {}).get("msg") or text[:120]
+    return result(False, error=f"http_{code}: {msg}",
+                  permanent=code in (400, 401, 403, 404))
+
+
+# -------------------------------------------------- Blogger (post by email) ---
+def ch_blogger(a: dict) -> dict:
+    """Blogger's Mail2Post: send an email to the secret address and it posts.
+
+    Needs an SMTP relay (BLOGGER_SMTP_* ). No SMTP configured = skipped by the
+    registry, so this never fails a run.
+    """
+    import smtplib
+    from email.message import EmailMessage
+
+    title, blurb, url, image = _asset_bits(a)
+    to = env("BLOGGER_EMAIL")
+    host, user = env("BLOGGER_SMTP_HOST"), env("BLOGGER_SMTP_USER")
+    pw, port = env("BLOGGER_SMTP_PASS"), int(env("BLOGGER_SMTP_PORT") or "587")
+
+    html = f"<p>{blurb}</p>"
+    if image:
+        html += f'<p><img src="{image}" alt="{title}"></p>'
+    if url:
+        html += f'<p><a href="{url}">Get it here</a></p>'
+
+    msg = EmailMessage()
+    msg["Subject"] = title          # becomes the post title
+    msg["From"], msg["To"] = user, to
+    msg.set_content(blurb + (f"\n\n{url}" if url else ""))
+    msg.add_alternative(html, subtype="html")
+    try:
+        with smtplib.SMTP(host, port, timeout=45) as sv:
+            sv.starttls()
+            sv.login(user, pw)
+            sv.send_message(msg)
+        return result(True, "", "", "emailed to Blogger Mail2Post")
+    except Exception as e:  # noqa: BLE001
+        return result(False, error=f"smtp: {e}"[:200],
+                      permanent="auth" in str(e).lower())
 
 
 # ---------------------------------------------------------------- registry ---
@@ -490,4 +632,9 @@ register("webflow",   ch_webflow,   ["WEBFLOW_TOKEN", "WEBFLOW_COLLECTION_ID"])
 register("systemeio", ch_systemeio, ["SYSTEMEIO_API_KEY"])
 register("archive",   ch_archive,   ["IA_ACCESS_KEY", "IA_SECRET_KEY"])
 register("payhip",    ch_payhip,    ["PAYHIP_API_KEY"])
+register("huggingface", ch_huggingface, ["HF_TOKEN"])
+register("tumblr",    ch_tumblr,    ["TUMBLR_CONSUMER_KEY", "TUMBLR_CONSUMER_SECRET",
+                                     "TUMBLR_TOKEN", "TUMBLR_TOKEN_SECRET"])
+register("blogger",   ch_blogger,   ["BLOGGER_EMAIL", "BLOGGER_SMTP_HOST",
+                                     "BLOGGER_SMTP_USER", "BLOGGER_SMTP_PASS"])
 register("buffer",    ch_buffer,    ["BUFFER_ACCESS_TOKEN", "BUFFER_CHANNEL_IDS"])

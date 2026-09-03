@@ -245,3 +245,69 @@ Pinterest inside Buffer first, then re-read the ids.
 
 Token valid (user `SharkSkin`). No adapter yet — HF Datasets/Spaces would be a
 good free host for the pack files. Not wired.
+
+## Round 3 — 2026-09-03
+
+### Buffer ✅ WORKING — I was wrong before
+
+My earlier "0 channels" claim was a **bad query**, not a bad account. `channels`
+requires an `input` argument; without it the API returned an empty list.
+Correct query:
+
+```graphql
+{ channels(input: {organizationId: "<org>"}) { id service isDisconnected } }
+```
+
+Result: **1 connected channel — `69fb5a1a5c4c051afa1829dc` (twitter)**, exactly
+the id supplied. Only 1 of 3 though: LinkedIn and Pinterest are not connected.
+
+`CreatePostInput` schema (introspected — public docs are wrong):
+- **`channelId` is SINGULAR** and required. No `channelIds`. One post per
+  channel, so the adapter loops.
+- `mode`: `addToQueue|customScheduled|shareNext|shareNow`
+- `schedulingType`: `automatic|notification`
+- `needsApproval` and `assets` are required
+- `assets` = `[AssetInput]` = `{image:{url}}` — **not** `{type, source}`
+
+Verified: post `6a99b51418474247f7574ec4` scheduled with image attached.
+
+### Hugging Face ✅ WORKING
+
+Creates a dataset repo per pack and commits a README.
+Live: <https://huggingface.co/datasets/SharkSkin/assetbot-zero-click-content-machine>
+
+**Gotcha:** the `/upload/{rev}/{path}` endpoint is **retired — 410**. Must use
+the NDJSON `/commit/{rev}` endpoint (header line + base64 file line).
+
+### itch.io ❌ cannot publish via API
+
+`GET /api/1/{key}/my-games` → **200** (key is valid), but `itch.io/game/new`
+returns a **Cloudflare bot challenge**. itch's HTTP API is **read-only**;
+publishing requires the `butler` CLI, which needs a binary download and a
+pre-existing game page. Not viable inside the queue worker.
+
+### Payhip ❌ read-only for products
+
+Auth header is **`payhip-api-key`** (Bearer 401s) and reads work fine. Creation
+returns `{"success": false, "message": null}` for **every** shape tried:
+JSON, form-encoded, +`product_type=digital`, and multipart with a file.
+Marked permanent.
+
+### Tumblr ❌ credentials rejected
+
+OAuth 1.0a HMAC-SHA1 signer implemented and wired. The blog
+`affiliatemonk.tumblr.com` **exists** (public API confirms), but signed
+requests fail: even `GET /v2/user/info` returns **401 code 1009 "Unable to
+authorize"**. Since that call needs only a valid signature + token pair, the
+supplied token/secret is expired or from a different app than the consumer key.
+**Regenerate the OAuth tokens at api.tumblr.com/console.**
+
+### Blogger — adapter built, needs SMTP
+
+Mail2Post address `simalidudu.goatranger@blogger.com` is wired. Posting by
+email needs an SMTP relay, so set `BLOGGER_SMTP_HOST/USER/PASS` (a Gmail app
+password works). Without them the channel is skipped silently.
+
+**Why these were missed earlier:** Blogger and Tumblr were supplied in the
+grain-works config dump rather than as explicit keys, and I did not carry them
+across. That was an oversight — both are now first-class channels.
