@@ -152,3 +152,43 @@ and Future Tools are the four worth the time.**
 4. **One afternoon of manual directory submissions** (Openfuture, AlternativeTo,
    SourceForge, Future Tools).
 5. Keep the mesh running. It is doing its job: reputation, reach, permanence.
+
+## Lightning address — Spark address is NOT zappable (2026-09-04)
+
+Supplied: `spark1pgssyrvysh9twaq74jwrz3wp26g8cnn7et7llq6twfwrnsnrqmrwkfkn647xay`
+
+That is a **Spark address** — a Bech32m identifier for a wallet on the Spark
+Bitcoin L2. Per Spark's own docs it "maps to a wallet's identity public key…
+think of them as user IDs". It is **not** a payment endpoint.
+
+NIP-57 zaps require one of:
+
+| Field | Format | Example |
+|---|---|---|
+| `lud16` | lightning address | `name@domain.com` |
+| `lud06` | LNURL | `lnurl1...` |
+
+A `spark1...` string is neither, so no Nostr client can zap it. Publishing it
+would look like a payment option and silently collect nothing.
+
+**Guarded in code:** both the Nostr adapter and the Worker `/p` pages only
+render the zap CTA when `LIGHTNING_ADDRESS` contains `@`. A Spark address is
+skipped with a log line rather than shipped as a dead CTA.
+
+### What is needed instead
+
+Spark wallets **can** create Lightning invoices (`createLightningInvoice()`),
+so the wallet supports Lightning — it just has not exposed a reusable
+*address*. Options:
+
+1. **A Spark app that issues a username** → many give `you@theirdomain.com`.
+   Check the wallet UI for "Lightning address" / "username", not "Spark
+   address".
+2. **A dedicated LUD-16 provider.** Self-custodial and generally reachable:
+   **Phoenix** (Bolt12/LN address), **Breez**, **Alby Hub**, **Coinos**,
+   **Blink**. Avoid custodial US services (Strike, Cash App) — they geoblock.
+3. **Self-host** an LNURL-pay endpoint on the Worker pointing at a node. Most
+   sovereign, most work.
+
+Anything ending in `@something` works the moment it is set — the code is
+already deployed and waiting.

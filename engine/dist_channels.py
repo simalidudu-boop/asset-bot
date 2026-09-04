@@ -1024,8 +1024,14 @@ def ch_nostr(a: dict) -> dict:
     # Lightning is the only payment rail that works under sanctions, so put
     # the address on every note. Zaps need it in the profile too (NIP-57).
     ln = env("LIGHTNING_ADDRESS")
-    if ln:
+    if ln and "@" in ln:
+        # Only a LUD-16 lightning address (name@domain) is zappable. A Spark
+        # address (spark1...) is a wallet identity on the Spark L2, NOT a
+        # payment endpoint — publishing one gets no zaps and looks broken.
         content += f"\n\n⚡ {ln}"
+    elif ln:
+        print(f"[nostr] LIGHTNING_ADDRESS {ln[:12]}... is not a "
+              "name@domain lightning address — omitting the zap line")
 
     tags = [["t", str(k).lower().replace(" ", "")]
             for k in (a.get("keywords") or ["ai", "prompts"])[:5]]
