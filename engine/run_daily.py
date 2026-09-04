@@ -195,6 +195,15 @@ def main():
         r = one_asset(item, i)
         if r:
             results.append(r)
+    # Chase up listings still in Whop's MANUAL review queue. Submission is
+    # autonomous; the review is not, and GET never returns the status — so
+    # without this poll the manifest says pending_review forever.
+    try:
+        import marketplace as _mk
+        _mk.poll_marketplace_status()
+    except Exception as e:  # noqa: BLE001
+        print(f"[daily] marketplace poll skipped: {e}")
+
     summary = ROOT / "out" / "daily_summary.json"
     summary.parent.mkdir(exist_ok=True)
     summary.write_text(json.dumps({"date": os.popen("date -u +%Y-%m-%d").read().strip(),

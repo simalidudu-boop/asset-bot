@@ -24,8 +24,15 @@ purchasable catalogue is a megaphone pointed at an empty shop.
 
 | Role | Channels |
 |---|---|
-| **Can transact** | Whop, Gumroad, Ko-fi |
-| **Pointers** (drive traffic, cannot sell) | dev.to, Bluesky, Mastodon, Nostr, Tumblr, Blogger, Discord, Telegram, Buffer→X/LinkedIn, YouTube, Webflow, Zenodo, Archive.org, Hugging Face, itch.io, IndexNow, RSS |
+| **Can transact TODAY** | **Whop — and only Whop** |
+| Could transact, not connected | Gumroad (no key), Ko-fi (webhook only — receives payment *notifications*, cannot list products) |
+| **Pointers** (drive traffic, cannot sell) | the other 16 |
+
+**Correction (2026-09-04):** an earlier draft said three channels can take
+money. That was wrong. **Only Whop can.** Gumroad has an adapter but no
+`GUMROAD_ACCESS_TOKEN`, and Ko-fi's API is *inbound webhooks only* — it tells
+us a payment happened, it cannot create a product. Single point of failure:
+if Whop suspends the account, revenue goes to zero with no fallback.
 
 So the money equation is:
 
@@ -98,19 +105,22 @@ Not every channel deserves the same post. Concretely:
 
 | Platform | Why | Status |
 |---|---|---|
-| **PromptBase** | **The** dedicated AI-prompt marketplace: 260k+ prompts, 425k+ users, buyers arrive *specifically wanting prompts*. 20% commission. | 403 to bots — manual listing, no API |
+| **PromptBase** | **The** dedicated AI-prompt marketplace: 260k+ prompts, 425k+ users, buyers arrive *specifically wanting prompts*. 20% commission. | **NO seller API exists.** Manual web submission + manual review (15 min–36 h). Browser automation (Playwright) is the only route and still hits the human approval queue. Not worth building. |
 | **Gumroad Discover** | Marketplace with genuine organic search traffic. Already have the adapter, need the key. | adapter built, needs `GUMROAD_ACCESS_TOKEN` |
-| **Kit (ConvertKit)** | Free to 10k subscribers, **sells products directly to the list**, 3.5% + 30c. Would replace Systeme.io's dead-end (no send endpoint on free tier). | API live (401 without key) |
-| **Amazon KDP** | Biggest ebook marketplace on earth. Our packs are already PDFs — a "100 AI Prompts for X" ebook is a genuine KDP product. 35–70% royalty. | no public API, manual upload |
-| **Lemon Squeezy** | Merchant of Record — handles global VAT. Matters if EU buyers appear. | API live (401 without key) |
-| **Product Hunt** | One-shot launch spike, high-quality audience. | API exists, needs OAuth |
+| ~~Kit (ConvertKit)~~ | ~~free to 10k subs~~ | ❌ **14-day trial only, then paid.** Not free. Ruled out. |
+| **Amazon KDP** | Biggest ebook marketplace on earth; packs are already PDFs. 35–70% royalty. | no public API — **manual upload only**. Worth doing by hand, cannot be automated. |
+| ~~Lemon Squeezy~~ | ~~MoR / VAT~~ | ❌ key is **test mode only** — cannot process real payments. Ruled out. |
+| **Product Hunt** | One-shot launch spike. | ⚠️ **OAuth works** (token minted), but the GraphQL schema exposes only `userFollow` / `userFollowUndo` — **no post-creation mutation**. Read-only + manual submission. |
 | **Creative Market** | Millions of design buyers, but **50% commission** and approval required. | marginal |
 
 ### Explicitly NOT worth adding
 
 - **Etsy** — **banned AI prompt bundles in July 2024.** Most guides still get
   this wrong. Do not build it.
-- **Udemy** — instructor share cut to ~15% for 2026.
+- **Udemy** — the *Affiliate* API is for **promoting other people's courses**
+  for commission, not publishing ours; our key returns `403 You do not have
+  permission`. Publishing is manual, instructor share ~15% for 2026, and
+  Udemy does not fit a $0–19 prompt-pack catalogue. Skip.
 - **Reddit** — API closed, ~$12k/yr commercial tier, spam terms.
 
 ---
@@ -133,3 +143,30 @@ Ranked by expected revenue per hour of work:
 
 Everything above costs nothing but attention. None of it requires another
 channel adapter.
+
+
+---
+
+## Correction: is the Whop listing autonomous?
+
+**Submission is. Review is not — and we were never checking the outcome.**
+
+`marketplace.publish()` runs automatically on every release, so products *are*
+submitted without human involvement. What was missing:
+
+1. Whop reviews each submission **manually** (their reviewer, their timeline).
+2. `GET /products/{id}` does **not** return `marketplace_status` — verified
+   again today. The only way to read it is to re-POST `/publish`, which is
+   idempotent and echoes the current state.
+
+So nothing ever updated `pending_review` in our manifest, even if a product
+had gone live on Discover days ago. That is now fixed:
+`marketplace.poll_marketplace_status()` re-checks every live, non-terminal
+product on each daily cycle, updates the manifest, and announces any
+transition to `live_marketplace`.
+
+Verified live: polls both products, correctly reports `pending_review`, 0
+changed. It will flip them the moment Whop approves.
+
+**Still genuinely manual on Whop's side:** their review. Nothing we can
+automate — but we will now *know* within 24 h instead of never.

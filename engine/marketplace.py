@@ -207,3 +207,52 @@ def ensure_faq_experience(product_id: str, company_id: str,
         out.update(status="attach_failed", error=str(e)[:200])
         print(f"[faq] attach failed for {product_id}: {e}")
     return out
+
+
+def poll_marketplace_status(manifest_path: str | None = None) -> dict:
+    """Re-check every live product's marketplace listing and update state.
+
+    Submission IS autonomous — `publish()` runs on every release. What was
+    missing is the follow-up: Whop reviews a submission MANUALLY (minutes to
+    days) and `GET /products/{id}` does NOT expose `marketplace_status`, so
+    the only way to learn the outcome is to re-POST /publish, which is
+    idempotent and returns the current state.
+
+    Without this the manifest keeps saying `pending_review` forever even after
+    a product goes live on Discover.
+    """
+    import json as _json
+    from pathlib import Path as _P
+
+    mp = _P(manifest_path or (_P(__file__).resolve().parent.parent
+                              / "state" / "manifest.json"))
+    try:
+        man = _json.loads(mp.read_text())
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"manifest unreadable: {e}"}
+
+    changed, out = 0, {}
+    for a in man.get("assets", []):
+        pid = a.get("product_id")
+        if not pid or a.get("status") != "live":
+            continue
+        was = a.get("marketplace_status")
+        if was == "live_marketplace":
+            continue                      # terminal: nothing left to poll
+        try:
+            res = whop._request("POST", f"/products/{pid}/publish")
+            now = res.get("marketplace_status")
+        except Exception as e:  # noqa: BLE001
+            print(f"[marketplace] poll failed for {pid}: {e}")
+            continue
+        out[a.get("slug", pid)] = now
+        if now and now != was:
+            a["marketplace_status"] = now
+            changed += 1
+            print(f"[marketplace] {a.get('slug')}: {was} -> {now}")
+            if now == "live_marketplace":
+                print(f"[marketplace] LIVE ON DISCOVER: {a.get('title')}")
+    if changed:
+        mp.write_text(_json.dumps(man, indent=2))
+    print(f"[marketplace] polled {len(out)} product(s), {changed} changed")
+    return {"polled": len(out), "changed": changed, "status": out}
