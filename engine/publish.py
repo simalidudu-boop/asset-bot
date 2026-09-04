@@ -88,7 +88,10 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
         "visibility": "visible" if price == 0.0 else "hidden",
         "metadata": {"slug": slug, "kind": pack.get("category"),
                      "generated": True, "free": price == 0.0, "price": price},
-        "external_identifier": f"bot-{slug}",
+        # NOTE: `external_identifier` is NO LONGER ACCEPTED by Whop's create
+        # endpoint — it 400s for every value tried (plain slug, timestamped,
+        # alphanumeric-only), while omitting it succeeds. Verified 2026-09-04.
+        # The slug already lives in `metadata`, so nothing is lost.
     }
     if image_urls:
         # gallery_images is not accepted by product create in all API

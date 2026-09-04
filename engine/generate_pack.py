@@ -139,6 +139,36 @@ def generate(topic: str, mock: bool = False) -> dict:
     # 4000 tokens truncated real packs mid-JSON (production: 0/3 assets on
     # 2026-09-04, all three JSONDecodeError). Packs need ~9k+ chars.
     pack = textgen.get_json(messages, max_tokens=8000, quality=True)
+    pack = ensure_shape(pack)
+
+    # Models under-deliver on count (observed: 3 prompts when 10 were asked
+    # for), which QC then correctly blocks. Ask once for the shortfall rather
+    # than lowering the quality bar or throwing the whole pack away.
+    want = 8
+    have = len(pack.get("prompts") or [])
+    if have < want:
+        print(f"[pack] only {have} prompts, requesting {want - have} more")
+        try:
+            top_up = textgen.get_json(messages + [
+                {"role": "assistant", "content": json.dumps(pack)[:4000]},
+                {"role": "user", "content":
+                 f"That pack has only {have} prompts. Return ONLY valid JSON "
+                 f'of the form {{"prompts": [...]}} containing {want - have} '
+                 "ADDITIONAL, different prompts in the same shape."}],
+                max_tokens=6000, quality=True)
+            extra = top_up.get("prompts") or []
+            if extra:
+                seen = {str(x.get("prompt", ""))[:120].lower()
+                        for x in pack["prompts"]}
+                for e in extra:
+                    if str(e.get("prompt", ""))[:120].lower() not in seen:
+                        pack["prompts"].append(e)
+                for i, pr in enumerate(pack["prompts"], 1):
+                    pr["n"] = i
+                print(f"[pack] topped up to {len(pack['prompts'])} prompts")
+        except Exception as e:  # noqa: BLE001  a thin pack is better than none
+            print(f"[pack] top-up failed ({e}) — QC will decide")
+
     return ensure_faq(pack)
 
 
@@ -162,6 +192,20 @@ DEFAULT_FAQ = [
      "answer": "Yes. Use the outputs in your own business or for clients. "
                "Please don't resell the pack itself."},
 ]
+
+
+def ensure_shape(pack: dict) -> dict:
+    """Guarantee optional-but-assumed keys exist.
+
+    The LLM legitimately omits `skills` (especially after a truncation
+    repair), and three call sites indexed it directly -> KeyError killed an
+    otherwise PERFECT pack that had already scored 100/100 at QC.
+    """
+    pack.setdefault("skills", [])
+    pack.setdefault("prompts", [])
+    pack.setdefault("keywords", [])
+    pack.setdefault("upsell", {"pro_teaser": "", "custom_work_cta": ""})
+    return pack
 
 
 def ensure_faq(pack: dict) -> dict:
@@ -206,7 +250,7 @@ def render_markdown(pack: dict, topic: str, links: dict) -> str:
         L.append(f"**Returns:** {p['example_output']}\n")
     L.append("---\n")
     L.append("## Skills\n")
-    for s in pack["skills"]:
+    for s in (pack.get("skills") or []):
         L.append(f"### {s['n']}. {s['title']}\n")
         L.append(f"*{s['summary']}*\n")
         for i, step in enumerate(s["steps"], 1):
@@ -251,4 +295,4 @@ if __name__ == "__main__":
     pack = generate(topic, mock=mock)
     out = build_pack_dir(topic, pack, {}, Path("out/packs"))
     print(json.dumps({"slug": out["slug"], "prompts": len(pack["prompts"]),
-                      "skills": len(pack["skills"]), "md": str(out["md"])}, indent=2))
+                      "skills": len(pack.get("skills") or []), "md": str(out["md"])}, indent=2))

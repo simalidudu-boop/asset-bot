@@ -155,7 +155,7 @@ def one_asset(item: dict, idx: int) -> dict | None:
         # description (product page)
         description = (f"{pack['description']}\n\n"
                        f"📦 {len(pack['prompts'])} copy-paste prompts, "
-                       f"{len(pack['skills'])} step-by-step skills with code.")
+                       f"{len(pack.get('skills') or [])} step-by-step skills with code.")
 
         # hosting: GitHub Releases = free public CDN (no R2/card needed)
         deliverable_paths = [Path(v) for k, v in artifacts.items()
