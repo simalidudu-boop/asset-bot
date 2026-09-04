@@ -162,14 +162,18 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
             print(f"[faq] experience step skipped: {e}")
 
     if price == 0.0:
-        listing = marketplace.publish(product_id, COMPANY_ID)
-        result["marketplace_status"] = listing.get("marketplace_status")
-        result["marketplace_missing"] = listing.get("missing")
-
-    if price == 0.0:
+        # ORDER MATTERS. The $0 plan MUST exist before the marketplace
+        # submission: Whop requires "at least one available pricing option",
+        # and publishing first produced
+        #   "NOT eligible — missing: a visible pricing plan"
+        # on every free asset, silently keeping them off Discover.
         plan = whop.create_plan(product_id=product_id, initial_price=0.0)
         result["plan_id"] = plan.get("id")
         result["status"] = "live"
+
+        listing = marketplace.publish(product_id, COMPANY_ID)
+        result["marketplace_status"] = listing.get("marketplace_status")
+        result["marketplace_missing"] = listing.get("missing")
     else:
         issue = review.open_review_issue(pack, slug, price, image_urls, file_urls,
                                          page_url, product_id)
