@@ -1,5 +1,13 @@
 # asset-bot
 
+Three factories, three architectures — see **[`docs/FACTORIES.md`](docs/FACTORIES.md)**:
+
+| | Name | Delivery | Money | Status |
+|---|---|---|---|---|
+| **F1** | **The Storefront** | gated — checkout then download | Whop | running |
+| F2 | The Broker | n/a (affiliate content) | commissions | **shut down** |
+| **F3** | **The Commons** | ungated — `git clone` / raw URL | zaps + sponsors | running, LIVE |
+
 An autonomous digital-product factory. Every day it invents a topic, generates
 an AI prompt pack, renders images and video, packages it, publishes it as a
 product on Whop, and syndicates it across ~22 channels — with no human in the
