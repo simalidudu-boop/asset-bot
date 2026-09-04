@@ -13,6 +13,15 @@
       "huggingface": "https://huggingface.co/datasets/SharkSkin/adversarial-prompt-injection-dataset",
       "created": "2026-09-04T20:31:00Z",
       "status": "live"
+    },
+    {
+      "name": "model-refusal-phrases",
+      "title": "AI Model Refusal Phrases Dataset",
+      "rows": 30,
+      "github": "https://github.com/simalidudu-boop/model-refusal-phrases",
+      "huggingface": "https://huggingface.co/datasets/SharkSkin/model-refusal-phrases",
+      "created": "2026-09-04T21:34:23Z",
+      "status": "live"
     }
   ]
 }
