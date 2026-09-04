@@ -114,7 +114,6 @@ def one_asset(item: dict, idx: int) -> dict | None:
 
         # promo images
         images = []
-        ip = pack.get("upsell", {}).get("pro_teaser", pack["subtitle"])
         prompts = _image_prompts(pack, slug)[:N_IMAGES]
         for pi, p in enumerate(prompts):
             try:
