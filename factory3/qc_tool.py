@@ -112,9 +112,16 @@ def check(d: dict) -> dict:
     if bad:
         errors.append(f"non-stdlib imports: {bad[:3]}")
 
-    blob = f"{d.get('description','')}\n{code}\n{d.get('tests','')}"
-    if m := _LEAK.search(blob):
-        errors.append(f"placeholder/leakage: {m.group(0)[:40]!r}")
+    # Leakage check applies to CODE only, plus placeholder-style markers in
+    # prose. A dataset can legitimately be ABOUT refusal phrases — blocking
+    # "model-refusal-phrases-dataset" for containing "I'm sorry" was a false
+    # positive that killed a valid 30-row dataset in production.
+    if m := _LEAK.search(code):
+        errors.append(f"placeholder/leakage in tool_code: {m.group(0)[:40]!r}")
+    _PROSE_ONLY = re.compile(r"\bTODO\b|\bFIXME\b|\blorem ipsum\b"
+                             r"|\bplaceholder\b|\{\{.*?\}\}", re.I)
+    if m := _PROSE_ONLY.search(d.get("description", "")):
+        errors.append(f"placeholder in description: {m.group(0)[:40]!r}")
 
     if not d.get("tests"):
         warnings.append("no tests supplied")
