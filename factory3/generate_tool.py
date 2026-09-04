@@ -140,10 +140,64 @@ def generate(mock: bool = False) -> dict:
                       "def test_by_label():\n    assert by_label('instruction-override')\n"),
         }
     else:
+        # TWO calls, not one. Asking for 25+ rows AND a tool AND tests in a
+        # single response truncated at ~11k chars in production, yielding a
+        # 3-row dataset with no tool_code. Rows are the bulk of the tokens, so
+        # they get their own call.
         d = textgen.get_json(
             [{"role": "system", "content": system_prompt(slug, desc, cat)},
              {"role": "user", "content": f"Build the dataset: {desc}"}],
             max_tokens=8000, quality=True)
+
+        rows = d.get("rows") or []
+        want = 25
+        tries = 0
+        while len(rows) < want and tries < 2:
+            tries += 1
+            need = want - len(rows)
+            print(f"[gen] {len(rows)} rows, requesting {need} more")
+            try:
+                more = textgen.get_json([
+                    {"role": "system", "content":
+                     "You extend developer datasets. Return ONLY valid JSON."},
+                    {"role": "user", "content":
+                     f"Dataset: {desc}\n\nExisting rows (do not repeat):\n"
+                     + json.dumps(rows[-8:])[:2000]
+                     + f"\n\nReturn {need} MORE distinct rows in the same "
+                       'shape, as {"rows": [...]} and nothing else.'}],
+                    max_tokens=6000, quality=True)
+                seen = {json.dumps(r, sort_keys=True)[:200] for r in rows}
+                for r in (more.get("rows") or []):
+                    if json.dumps(r, sort_keys=True)[:200] not in seen:
+                        rows.append(r)
+            except Exception as e:  # noqa: BLE001
+                print(f"[gen] row top-up failed: {e}")
+                break
+        d["rows"] = rows
+
+        # The tool is small but essential — if truncation ate it, ask again
+        # on its own where it cannot compete with 25 rows for tokens.
+        if len((d.get("tool_code") or "").strip()) < 150:
+            print("[gen] tool_code missing/short — requesting separately")
+            try:
+                t = textgen.get_json([
+                    {"role": "system", "content":
+                     "You write small stdlib-only Python modules. "
+                     "Return ONLY valid JSON."},
+                    {"role": "user", "content":
+                     f"Dataset '{d.get('title', slug)}': {desc}\n"
+                     f"Sample rows: {json.dumps(rows[:3])[:800]}\n\n"
+                     'Return {"tool_code": "...", "usage_example": "...", '
+                     '"tests": "..."} where tool_code is ONE self-contained '
+                     "module using ONLY the standard library that loads "
+                     "data.jsonl from its own directory and exposes useful "
+                     "functions including load(). tests are pytest tests."}],
+                    max_tokens=4000, quality=True)
+                for k in ("tool_code", "usage_example", "tests"):
+                    if t.get(k):
+                        d[k] = t[k]
+            except Exception as e:  # noqa: BLE001
+                print(f"[gen] tool top-up failed: {e}")
 
     d.setdefault("rows", [])
     d.setdefault("keywords", [])
