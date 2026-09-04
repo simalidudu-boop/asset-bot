@@ -4,6 +4,15 @@
       "name": "prompt-injection-test-cases",
       "status": "dry",
       "rows": 26
+    },
+    {
+      "name": "adversarial-prompt-injection-dataset",
+      "title": "Adversarial Prompt Injection Strings for LLM Guardrails",
+      "rows": 27,
+      "github": "https://github.com/simalidudu-boop/adversarial-prompt-injection-dataset",
+      "huggingface": "https://huggingface.co/datasets/SharkSkin/adversarial-prompt-injection-dataset",
+      "created": "2026-09-04T20:31:00Z",
+      "status": "live"
     }
   ]
 }
