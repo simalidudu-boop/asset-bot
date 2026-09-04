@@ -67,6 +67,7 @@ jobs:
           MASTODON_EXTRA: ${{ secrets.MASTODON_EXTRA }}
           NOSTR_NSEC: ${{ secrets.NOSTR_NSEC }}
           LIGHTNING_ADDRESS: ${{ secrets.LIGHTNING_ADDRESS }}
+          BOLT12_OFFER: ${{ secrets.BOLT12_OFFER }}
           NOSTR_RELAYS: ${{ secrets.NOSTR_RELAYS }}
           JSON2VIDEO_API_KEY: ${{ secrets.JSON2VIDEO_API_KEY }}
           SHOTSTACK_KEY: ${{ secrets.SHOTSTACK_KEY }}
