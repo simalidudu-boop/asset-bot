@@ -1,5 +1,13 @@
 # Factory 2 — Bitcoin/Lightning affiliate content
 
+> **🛑 SHUT DOWN 2026-09-04.** Three independent locks:
+> 1. workflow `disabled_manually` in GitHub Actions
+> 2. `schedule:` cron removed from the YAML
+> 3. runtime guard — exits unless `F2_ENABLED=1`
+>
+> The code is intact and verified working (one real article, 100/100 QC).
+> To revive: re-enable the workflow, add a cron, set `F2_ENABLED=1`.
+
 **Standalone.** Own state, own queue, own manifest, own copy of the
 infrastructure. Shares nothing with Factory 1 (`engine/`) — you can break,
 rewrite or delete either without touching the other.

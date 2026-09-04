@@ -109,6 +109,13 @@ def one_article(i: int) -> dict | None:
 
 
 def main() -> None:
+    # Kill switch. Factory 2 was shut down 2026-09-04; this guard means even a
+    # manual dispatch or a stray cron cannot publish without an explicit
+    # F2_ENABLED=1. Belt and braces alongside the disabled workflow.
+    if os.environ.get("F2_ENABLED", "0") != "1":
+        print("[f2] DISABLED — set F2_ENABLED=1 to run. Exiting without work.")
+        return
+
     print(f"[f2] MOCK={MOCK} DRY={DRY} articles={N_ARTICLES} "
           f"payable_programmes={len(affiliates.payable())}")
 

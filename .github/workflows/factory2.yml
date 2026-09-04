@@ -2,9 +2,11 @@ name: factory2-affiliate-content
 # Factory 2: Bitcoin/Lightning affiliate content.
 # Fully standalone — own state, own queue, own manifest. Shares nothing with
 # the prompt-pack factory except the shape of the code.
+# SHUT DOWN 2026-09-04 at the operator's request.
+# The schedule is removed as well as the workflow being disabled in the GitHub
+# UI, so re-enabling it cannot silently resume posting — you must add the cron
+# back deliberately.
 on:
-  schedule:
-    - cron: "35 9 * * *"      # off the hour, and clear of factory 1 (06:20)
   workflow_dispatch:
     inputs:
       mock:
