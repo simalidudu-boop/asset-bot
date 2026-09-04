@@ -212,19 +212,126 @@ def chat(messages: list, max_tokens: int = 2000, temperature: float = 0.7,
     return results
 
 
+def _repair_truncated_json(text: str) -> str:
+    """Close a JSON document that was cut off mid-generation.
+
+    The dominant production failure was NOT bad syntax but TRUNCATION:
+    max_tokens cut the response mid-string, so every pack died with
+    "Unterminated string" / "Expecting ',' delimiter" and the daily run
+    shipped 0/3 assets while still reporting success.
+
+    Approach: replay the text character by character, remembering the last
+    position where the document was in a *structurally clean* state (a
+    complete value, comma, or closed bracket). Truncate there, drop a
+    dangling key, then close all open brackets.
+    """
+    t = text.strip()
+    if not t:
+        return t
+
+    stack: list[str] = []
+    in_str = esc = False
+    # position -> stack snapshot, at each point the doc is "value-complete"
+    clean_at, clean_stack = 0, []
+    expect_value = False   # True right after a ':' (key seen, value pending)
+
+    for i, ch in enumerate(t):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+                if not expect_value and stack and stack[-1] == "}":
+                    pass                       # that string was a KEY
+                else:
+                    clean_at, clean_stack = i + 1, list(stack)
+                    expect_value = False
+            continue
+
+        if ch == '"':
+            in_str = True
+        elif ch == ":":
+            expect_value = True
+        elif ch == ",":
+            clean_at, clean_stack = i + 1, list(stack)
+            expect_value = False
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+            expect_value = False
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+            clean_at, clean_stack = i + 1, list(stack)
+            expect_value = False
+        elif ch in "0123456789truefalsn.-+eE":
+            # a bare literal is only safe once followed by a delimiter, which
+            # the ',' / '}' / ']' branches above handle.
+            pass
+
+    head = t[:clean_at].rstrip()
+    if head.endswith(","):
+        head = head[:-1].rstrip()
+
+    # a key with no value survived the cut ( ... , "slug" ) -> drop it
+    if head.endswith('"') and clean_stack and clean_stack[-1] == "}":
+        depth_open = head.rfind("{")
+        tail = head[depth_open:]
+        if tail.count('"') % 2 == 0 and ":" not in tail.rsplit('"', 2)[-1]:
+            cut = head.rfind('"', 0, head.rfind('"'))
+            cand = head[:cut].rstrip().rstrip(",")
+            if cand.rstrip().endswith((",", "{", "[")) or cand:
+                head = cand
+
+    head = head.rstrip().rstrip(",")
+    out = head + "".join(reversed(clean_stack))
+
+    # Guard: if the salvage produced nothing useful (truncation happened
+    # before the first complete value), return the original so the caller
+    # falls through to a regeneration instead of parsing an empty shell.
+    try:
+        obj = json.loads(out)
+    except json.JSONDecodeError:
+        return text
+    if not isinstance(obj, dict) or len(obj) < 2:
+        return text
+    return out
+
+
 def get_json(messages: list, max_tokens: int = 3000, quality: bool = True):
-    """chat() with JSON mode + a repair pass on parse failure."""
-    for attempt in range(2):
+    """chat() with JSON mode, a truncation repair pass, and a retry."""
+    last_err = None
+    for attempt in range(3):
         try:
-            text = chat(messages, max_tokens=max_tokens, json_mode=True, quality=quality)[0]
-            return json.loads(_strip_json_fence(text))
-        except (json.JSONDecodeError, RuntimeError) as e:
-            if attempt == 0 and isinstance(e, json.JSONDecodeError):
-                messages.append({"role": "user",
-                                 "content": "Your last response was not valid JSON. Return ONLY valid JSON."})
-                continue
-            raise
-    raise RuntimeError("json extraction failed")
+            text = chat(messages, max_tokens=max_tokens,
+                        json_mode=True, quality=quality)[0]
+        except RuntimeError as e:
+            last_err = e
+            continue
+        cleaned = _strip_json_fence(text)
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError as e:
+            last_err = e
+            # 1) try to salvage a truncated document before spending another call
+            try:
+                repaired = _repair_truncated_json(cleaned)
+                obj = json.loads(repaired)
+                print(f"[textgen] repaired truncated JSON "
+                      f"({len(cleaned)} -> {len(repaired)} chars)")
+                return obj
+            except json.JSONDecodeError:
+                pass
+            # 2) ask for a shorter, valid document
+            if attempt == 0:
+                messages = messages + [{
+                    "role": "user",
+                    "content": ("Your last response was not valid JSON (it was "
+                                "cut off). Return ONLY valid, COMPLETE JSON. "
+                                "Be more concise so it fits.")}]
+            max_tokens = int(max_tokens * 1.5)   # give it room to finish
+    raise RuntimeError(f"json extraction failed after 3 attempts: {last_err}")
 
 
 def _strip_json_fence(text: str) -> str:

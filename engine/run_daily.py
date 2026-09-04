@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import preflight  # noqa: E402
+import qc  # noqa: E402
 import topics  # noqa: E402
 import generate_pack  # noqa: E402
 import packaging  # noqa: E402
@@ -88,6 +89,18 @@ def one_asset(item: dict, idx: int) -> dict | None:
         links = {}
         if is_free and FREE_ASSET_LINK:
             links["free"] = FREE_ASSET_LINK
+        # QC gate: block broken packs BEFORE they reach a customer.
+        # NOTE: the canonical slug is assigned later by topics.record_asset(),
+        # so derive a label here purely for logging.
+        qc_label = generate_pack.slugify(pack.get("title") or topic)
+        # MOCK packs are deliberately tiny fixtures — gate them non-strictly
+        # so a dry run still exercises the whole pipeline.
+        if not qc.gate(pack, qc_label, paid=not item.get("free", True),
+                       strict=(not MOCK
+                               and os.environ.get("QC_STRICT", "1") != "0")):
+            print(f"[daily] {qc_label}: BLOCKED by QC — not publishing")
+            return None
+
         built = generate_pack.build_pack_dir(topic, pack, links, OUT / "packs")
         slug, d = built["slug"], built["dir"]
 
@@ -195,6 +208,9 @@ def main():
         r = one_asset(item, i)
         if r:
             results.append(r)
+    # Fail loudly on a silent no-op run (see qc.check_run docstring).
+    qc.check_run(len(results), len(picks), phase="daily")
+
     # Chase up listings still in Whop's MANUAL review queue. Submission is
     # autonomous; the review is not, and GET never returns the status — so
     # without this poll the manifest says pending_review forever.

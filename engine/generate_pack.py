@@ -136,7 +136,9 @@ def generate(topic: str, mock: bool = False) -> dict:
         {"role": "system", "content": system_prompt(topic)},
         {"role": "user", "content": f"Create the pack for: {topic}"},
     ]
-    pack = textgen.get_json(messages, max_tokens=4000, quality=True)
+    # 4000 tokens truncated real packs mid-JSON (production: 0/3 assets on
+    # 2026-09-04, all three JSONDecodeError). Packs need ~9k+ chars.
+    pack = textgen.get_json(messages, max_tokens=8000, quality=True)
     return ensure_faq(pack)
 
 

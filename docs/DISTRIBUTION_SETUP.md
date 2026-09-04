@@ -669,3 +669,56 @@ reserve rather than run in parallel.
 
 Returned **402 Payment Required**. Secrets removed from both workflows; zero
 references remain in the codebase.
+
+## Pipeline audit + QC — 2026-09-04
+
+### The factory was silently broken
+
+The last real daily cycle reported **success** while producing **0/3 assets**:
+
+```
+[daily] ASSET FAILED: Expecting ',' delimiter: line 50 column 6 (char 9155)
+[daily] ASSET FAILED: Unterminated string starting at: line 13 column 5
+[daily] ASSET FAILED: Expecting property name enclosed in double quotes
+[daily] done. 0/3 assets.
+```
+
+Green tick, zero output, nobody notified. Three separate defects:
+
+**1. Truncation, not bad syntax.** `max_tokens=4000` cut packs mid-JSON at
+~9,155 chars. Raised to **8000**, with a comment recording why.
+
+**2. No repair path.** `get_json()` only retried, which regenerated another
+over-long response. Added `_repair_truncated_json()`: it replays the document
+tracking string state and bracket depth, truncates at the last structurally
+clean point, drops a dangling key, and closes open brackets.
+
+Tested on 8 truncation shapes: **3 salvaged, 5 safely deferred to a retry,
+0 corrupted.** The no-corruption property is enforced by a guard — if the
+salvage yields fewer than 2 top-level keys it returns the original so the
+caller regenerates rather than shipping a hollow object.
+
+**3. Silent success.** `qc.check_run()` now raises when a cycle attempted work
+and produced nothing, so the workflow goes **red** instead of lying.
+
+### QC gate (`engine/qc.py`)
+
+Deterministic, no LLM-judging-an-LLM. Blocks before publication:
+
+| Check | Rule |
+|---|---|
+| title | 8–90 chars |
+| subtitle / description | present, description ≥120 chars |
+| prompts | ≥5, each ≥80 chars, **no duplicates** |
+| model leakage | "As an AI", "I'm sorry", "lorem ipsum", "TODO", `{{...}}`, `[insert` |
+| FAQ | ≥3 entries (warning) |
+| paid packs | higher bar: more prompts, skills section |
+
+Scored /100; `error` blocks, `warn` ships. Verified against a clean pack
+(**100/100 PASS**) and a poisoned one (**BLOCK**, caught `As an AI`, short
+prompts, missing subtitle).
+
+`MOCK` runs gate **non-strictly** — the built-in fixture is deliberately tiny,
+so dry runs still exercise the full pipeline.
+
+Config: `QC_STRICT=0` disables blocking (not recommended).
