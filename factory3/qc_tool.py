@@ -20,9 +20,15 @@ from pathlib import Path
 MIN_ROWS = 20
 MIN_TOOL_CHARS = 150
 
+# Only patterns that are ALWAYS a defect. Refusal phrases like "I'm sorry"
+# are legitimate DATA and legitimate string constants in a detector — twice in
+# production they blocked a valid 30-row dataset. Judge the shape of the code,
+# not the strings inside it.
 _LEAK = re.compile(
-    r"\bas an ai\b|\bi'm sorry\b|\blorem ipsum\b|\bplaceholder\b|\bTODO\b"
-    r"|\bFIXME\b|\.\.\.\s*$|\byour[_ ]here\b|\{\{.*?\}\}", re.I | re.M)
+    r"\bTODO\b|\bFIXME\b|\blorem ipsum\b|\bplaceholder\b"
+    r"|\{\{.*?\}\}|\byour[_ ]here\b|^\s*\.\.\.\s*$"
+    r"|\braise NotImplementedError\b|\bpass\s*#\s*implement",
+    re.I | re.M)
 
 # Third-party imports break "stdlib only" and will fail for users.
 _STDLIB_OK = re.compile(
