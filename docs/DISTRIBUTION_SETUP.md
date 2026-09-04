@@ -534,3 +534,40 @@ identical text is the sockpuppet pattern that gets flagged.
 `http()` raised `ValueError: unknown url type: ''` when an endpoint env var was
 blank (hit while testing YouTube with no bridge URL). It now returns a clean
 `invalid url` failure instead of an exception escaping the adapter.
+
+## YouTube ✅ WORKING via Apps Script bridge — 2026-09-03
+
+No Google Cloud project, no OAuth client, no credit card. Verified end to end.
+
+Health check:
+
+```
+GET <bridge>/exec?secret=…
+{"ok":true,"channel":"What The Hell?","channelId":"UChT6JgRbKyEY2r_Umyi2cxQ","videos":"5"}
+```
+
+Real upload of the existing slideshow video:
+
+```
+the-content-research-engine.mp4 (371,587 bytes)
+ -> https://www.youtube.com/watch?v=UcJiRFXv9I0
+    title    : The Content Research Engine — AI prompt pack
+    unlisted : true
+    seconds  : 6
+```
+
+Uploaded as **unlisted** deliberately for the first run. Set
+`YOUTUBE_PRIVACY=public` when you want them published; the default in the
+adapter is `public`, so this only stays unlisted while that env var is set.
+
+### Gotchas
+
+- **The shared secret really does end in `/edit?`** — that string was pasted
+  from a Script Properties URL, so the trailing `/edit?` is part of the stored
+  value. `A9SrZ5HUJROVvhpc1XF9s2Znbcic` alone returns `unauthorized`.
+  Either keep it verbatim, or fix the Script Property and update both sides.
+- The bridge **302-redirects** to `googleusercontent.com`; the client must
+  follow redirects (Python's urllib does by default).
+- `videos` count in the health check reflects *public* videos only, so it
+  stays at 5 after an unlisted upload — not a failure.
+- Only 1 of 6 assets currently has a `video_url`; the rest skip cleanly.
