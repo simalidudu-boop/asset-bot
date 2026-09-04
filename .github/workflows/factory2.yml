@@ -1,0 +1,84 @@
+name: factory2-affiliate-content
+# Factory 2: Bitcoin/Lightning affiliate content.
+# Fully standalone — own state, own queue, own manifest. Shares nothing with
+# the prompt-pack factory except the shape of the code.
+on:
+  schedule:
+    - cron: "35 9 * * *"      # off the hour, and clear of factory 1 (06:20)
+  workflow_dispatch:
+    inputs:
+      mock:
+        description: "Mock mode (no LLM keys needed)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  factory2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -q markdown curl_cffi secp256k1 websocket-client
+
+      - name: Run factory 2
+        env:
+          # LLM cascade
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          # money rail
+          LIGHTNING_ADDRESS: ${{ secrets.LIGHTNING_ADDRESS }}
+          BOLT12_OFFER: ${{ secrets.BOLT12_OFFER }}
+          NOSTR_NSEC: ${{ secrets.F2_NOSTR_NSEC || secrets.NOSTR_NSEC }}
+          AFFILIATE_IDS: ${{ secrets.AFFILIATE_IDS }}
+          # distribution (falls back to factory 1 keys until you swap them)
+          DIST_POSTING_MODE: ${{ secrets.F2_DIST_POSTING_MODE || 'DRAFT' }}
+          DEVTO_API_KEY: ${{ secrets.F2_DEVTO_API_KEY || secrets.DEVTO_API_KEY }}
+          BSKY_HANDLE: ${{ secrets.F2_BSKY_HANDLE || secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.F2_BSKY_APP_PASSWORD || secrets.BSKY_APP_PASSWORD }}
+          MASTODON_INSTANCE: ${{ secrets.MASTODON_INSTANCE }}
+          MASTODON_ACCESS_TOKEN: ${{ secrets.F2_MASTODON_ACCESS_TOKEN || secrets.MASTODON_ACCESS_TOKEN }}
+          TUMBLR_BLOG_URL: ${{ secrets.TUMBLR_BLOG_URL }}
+          TUMBLR_CONSUMER_KEY: ${{ secrets.TUMBLR_CONSUMER_KEY }}
+          TUMBLR_CONSUMER_SECRET: ${{ secrets.TUMBLR_CONSUMER_SECRET }}
+          TUMBLR_TOKEN: ${{ secrets.TUMBLR_TOKEN }}
+          TUMBLR_TOKEN_SECRET: ${{ secrets.TUMBLR_TOKEN_SECRET }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_USER: ${{ secrets.HF_USER }}
+          IA_ACCESS_KEY: ${{ secrets.IA_ACCESS_KEY }}
+          IA_SECRET_KEY: ${{ secrets.IA_SECRET_KEY }}
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+          BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
+          BUFFER_CHANNEL_IDS: ${{ secrets.BUFFER_CHANNEL_IDS }}
+          DISCORD_PROMO_WEBHOOKS: ${{ secrets.DISCORD_PROMO_WEBHOOKS }}
+          DISCORD_ALERT_WEBHOOK: ${{ secrets.DISCORD_ALERT_WEBHOOK }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          F2_PAGE_BASE: ${{ secrets.F2_PAGE_BASE }}
+          F2_ARTICLES: "1"
+          MOCK_INPUT: ${{ github.event.inputs.mock == 'true' && '1' || '0' }}
+        run: |
+          MOCK=$MOCK_INPUT python3 factory2/run_factory2.py
+
+      - name: Commit factory2 state
+        if: always()
+        run: |
+          git config user.name "asset-bot"
+          git config user.email "bot@asset-bot.local"
+          git add factory2/state factory2/out 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "factory2: state update $(date -u +%F)"
+          for i in 1 2 3; do
+            git pull --rebase -q && git push -q && break
+            echo "push attempt $i failed — retrying"
+          done
