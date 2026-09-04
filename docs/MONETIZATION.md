@@ -192,3 +192,44 @@ so the wallet supports Lightning — it just has not exposed a reusable
 
 Anything ending in `@something` works the moment it is set — the code is
 already deployed and waiting.
+
+
+## Lightning rail — LIVE (2026-09-04)
+
+| Field | Value |
+|---|---|
+| `lud16` (lightning address) | `SharkSkin@coinos.io` |
+| `lud12` (BOLT12 offer) | `lno1pgjx2ct9xsenwdfh943nvvtz956rgwf3943rxdrp95cx2dn9v3nrxepkvvenx93pqgfffll4jmjf0tffqtx47xt886gzp9fajp3966xz96gm2xj9cqedx` |
+| Nostr pubkey | `d4d7c4a683b71dcb59825b4dde60e9c8fb00c837eb0657fb9ecd6570ecc37e45` |
+
+Verified before wiring:
+
+```
+GET coinos.io/.well-known/lnurlp/SharkSkin -> 200
+  tag: payRequest   allowsNostr: true   min 1000 msat
+```
+
+`allowsNostr: true` is the load-bearing bit — it means real NIP-57 zaps, not
+just manual invoices. The Nostr pubkey also matches the nsec we post from, so
+zaps credit the right identity.
+
+### Why the profile mattered more than the note
+
+A zap button does **not** appear because a note mentions an address. Clients
+read the **author's kind-0 profile** for `lud16`/`lud12`. Publishing the
+profile is what actually switched zapping on — `engine/nostr_profile.py` does
+it and is re-runnable whenever the address changes.
+
+Live in three places: pack pages (`/p/:slug`), every Nostr note, and the
+profile itself.
+
+**Two BOLT12 offers were supplied.** Both are structurally valid `lno1`
+bech32; the second (121 chars vs 94) is the one now published. `lud16` remains
+the primary path since almost every Nostr client zaps via LNURL, with BOLT12
+as the fallback for clients that support offers.
+
+### Still unproven
+
+The plumbing is verified end to end, but **no money has moved**. Send yourself
+a 10-sat zap from any Nostr client to confirm funds actually land in Coinos —
+that is the one step this side cannot test.
