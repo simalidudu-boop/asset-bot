@@ -1,0 +1,61 @@
+name: factory4-tool-announcer
+# Factory 4: announces the fixed browser-tool set on a rotation.
+# NOT a producer — the 5 tools are hand-written in workers/src/tools.ts.
+# This only keeps the mesh pointing at them, with a different tool and a
+# different angle each day.
+on:
+  schedule:
+    - cron: "10 17 * * *"     # clear of F1 (06:20) and F3 (14:25)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install -q curl_cffi secp256k1 websocket-client
+
+      - name: Announce a tool
+        env:
+          F4_ENABLED: ${{ secrets.F4_ENABLED || '0' }}
+          DIST_POSTING_MODE: ${{ secrets.F4_DIST_POSTING_MODE || 'DRAFT' }}
+          F4_PAGE_BASE: ${{ secrets.PACK_PAGE_BASE }}
+          PACK_PAGE_BASE: ${{ secrets.PACK_PAGE_BASE }}
+          DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
+          MASTODON_INSTANCE: ${{ secrets.MASTODON_INSTANCE }}
+          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          NOSTR_NSEC: ${{ secrets.NOSTR_NSEC }}
+          LIGHTNING_ADDRESS: ${{ secrets.LIGHTNING_ADDRESS }}
+          TUMBLR_BLOG_URL: ${{ secrets.TUMBLR_BLOG_URL }}
+          TUMBLR_CONSUMER_KEY: ${{ secrets.TUMBLR_CONSUMER_KEY }}
+          TUMBLR_CONSUMER_SECRET: ${{ secrets.TUMBLR_CONSUMER_SECRET }}
+          TUMBLR_TOKEN: ${{ secrets.TUMBLR_TOKEN }}
+          TUMBLR_TOKEN_SECRET: ${{ secrets.TUMBLR_TOKEN_SECRET }}
+          BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
+          BUFFER_CHANNEL_IDS: ${{ secrets.BUFFER_CHANNEL_IDS }}
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+          DISCORD_PROMO_WEBHOOKS: ${{ secrets.DISCORD_PROMO_WEBHOOKS }}
+          DISCORD_ALERT_WEBHOOK: ${{ secrets.DISCORD_ALERT_WEBHOOK }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python3 factory4/announce_tools.py
+
+      - name: Commit state
+        if: always()
+        run: |
+          git config user.name "asset-bot"
+          git config user.email "bot@asset-bot.local"
+          git add factory4/state 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "factory4: state $(date -u +%F)"
+          for i in 1 2 3; do git pull --rebase -q && git push -q && break; done
