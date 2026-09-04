@@ -69,6 +69,7 @@ jobs:
           YOUTUBE_PRIVACY: ${{ secrets.YOUTUBE_PRIVACY }}
           MASTODON_EXTRA: ${{ secrets.MASTODON_EXTRA }}
           NOSTR_NSEC: ${{ secrets.NOSTR_NSEC }}
+          LIGHTNING_ADDRESS: ${{ secrets.LIGHTNING_ADDRESS }}
           NOSTR_RELAYS: ${{ secrets.NOSTR_RELAYS }}
           JSON2VIDEO_API_KEY: ${{ secrets.JSON2VIDEO_API_KEY }}
           SHOTSTACK_KEY: ${{ secrets.SHOTSTACK_KEY }}

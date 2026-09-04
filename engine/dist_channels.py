@@ -1021,6 +1021,11 @@ def ch_nostr(a: dict) -> dict:
         content += f"\n\n{image}"
     if url:
         content += f"\n\n{url}"
+    # Lightning is the only payment rail that works under sanctions, so put
+    # the address on every note. Zaps need it in the profile too (NIP-57).
+    ln = env("LIGHTNING_ADDRESS")
+    if ln:
+        content += f"\n\n⚡ {ln}"
 
     tags = [["t", str(k).lower().replace(" ", "")]
             for k in (a.get("keywords") or ["ai", "prompts"])[:5]]

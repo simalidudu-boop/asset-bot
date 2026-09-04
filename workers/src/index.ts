@@ -22,6 +22,7 @@ export interface Env {
   AI: any;
   KOFI_VERIFICATION_TOKEN: string;
   INDEXNOW_KEY: string;
+  LIGHTNING_ADDRESS: string;
   DISCORD_ALERT_WEBHOOK: string;
 }
 
@@ -623,6 +624,13 @@ ${items}
         (img ? `<img class="hero" src="${esc(img)}" alt="${esc(a.title)}">` : "") +
         (buy ? `<a class="cta" href="${esc(buy)}" rel="nofollow">
                  ${price > 0 ? `Get it — $${price.toFixed(2)}` : "Get it free"}</a>` : "") +
+        // Lightning zap CTA — the only payment rail that works under
+        // sanctions. Shown whenever LIGHTNING_ADDRESS is configured.
+        (env.LIGHTNING_ADDRESS ? `<p style="margin:4px 0 24px">
+           <span style="opacity:.7">Found this useful? Zap it:</span>
+           <code style="background:#161922;border:1px solid #2a2e37;border-radius:6px;
+                        padding:4px 8px;margin-left:6px">${esc(env.LIGHTNING_ADDRESS)}</code>
+         </p>` : "") +
         (faq.length ? `<h2>FAQ</h2>` + faq.map((f: any) =>
           `<details><summary>${esc(f.question)}</summary>
            <div style="margin-top:10px;opacity:.85">${esc(f.answer)}</div></details>`).join("") : "");
