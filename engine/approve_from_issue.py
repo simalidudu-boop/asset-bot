@@ -18,16 +18,25 @@ import review  # noqa: E402
 
 
 def extract_payload(body: str) -> dict | None:
-    m = re.search(r"```json\s*(\{.*?\})\s*```", body, re.S)
+    """Extract and parse the JSON payload block from an issue body.
+
+    Args:
+        body: Markdown body of the GitHub issue.
+
+    Returns:
+        Dictionary representation of the payload or None if extraction fails.
+    """
+    m = re.search(r"```json\s*([\s\S]*?)\s*```", body)
     if not m:
         return None
     try:
-        return json.loads(m.group(1))
+        return json.loads(m.group(1).strip())
     except json.JSONDecodeError:
         return None
 
 
 def main():
+    """Process approve comment event from review queue."""
     event_path = os.environ.get("GITHUB_EVENT_PATH", "")
     if not event_path:
         print("no event path")
@@ -45,8 +54,15 @@ def main():
         review.comment(number, "❌ Could not read the payload block from the "
                                "issue body. Nothing was published.")
         return
-    # dedup: if a previous /approve already published this issue, don't
-    # create a second plan / duplicate publish
+
+    try:
+        issue_data = review._gh("GET", f"/issues/{number}")
+        if issue_data.get("state") == "closed":
+            print(f"issue #{number} is already closed — skipping duplicate")
+            return
+    except Exception as e:
+        print(f"could not fetch issue state ({e}) — checking comments")
+
     comments = review._gh("GET", f"/issues/{number}/comments")
     if any("✅ Published!" in (c.get("body") or "") for c in comments):
         print(f"issue #{number} already published — skipping duplicate")
@@ -56,7 +72,6 @@ def main():
                               payload.get("pack", {}).get("metadata"))
         review.comment(number, f"✅ Published! Plan `{res['plan_id']}` created at "
                                f"${payload['price']} and product is now visible.")
-        # close the issue — cosmetic; never fail the run if GitHub rejects it
         try:
             review.close_issue(number)
         except Exception as e:

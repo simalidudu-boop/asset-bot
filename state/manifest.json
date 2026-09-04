@@ -299,9 +299,9 @@
       "topic": "Legal contract drafting and compliance checklists",
       "kind": "prompt-pack",
       "free": false,
-      "price": 14,
+      "price": 14.0,
       "product_id": "prod_wr1JXUmiACthc",
-      "status": "pending_approval",
+      "status": "live",
       "page_url": "https://whop.com/the-algorithmic-daemon-concern/legal-draft-pro",
       "created": "2026-09-04T15:47:00Z",
       "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-04-16544ec0889f91c8.mp4",
@@ -310,7 +310,29 @@
         "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/legal-draft-pro-img-1-v2.jpg",
         "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/legal-draft-pro-img-2-v2.jpg"
       ],
-      "marketplace_status": null,
+      "release_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/legal-draft-pro-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/legal-draft-pro-img-2-v2.jpg"
+      ],
+      "files": [
+        {
+          "name": "legal-draft-pro.pdf",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/legal-draft-pro-legal-draft-pro.pdf"
+        },
+        {
+          "name": "legal-draft-pro.docx",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/legal-draft-pro-legal-draft-pro.docx"
+        },
+        {
+          "name": "legal-draft-pro.zip",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/legal-draft-pro-legal-draft-pro.zip"
+        },
+        {
+          "name": "pack.html",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/legal-draft-pro-pack.html"
+        }
+      ],
+      "marketplace_status": "pending_review",
       "faq": [
         {
           "question": "What exactly do I get?",

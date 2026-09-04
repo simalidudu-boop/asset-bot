@@ -319,14 +319,15 @@ async function dispatch(wf){
   else toast("failed: "+(r.error||""));
 }
 
-async function review(issue,command){
-  if(!needToken())return;
-  if(!confirm(`Send ${command} on issue #${issue}?`))return;
+async function review(issue,command,btn){
+  if(btn) btn.disabled = true;
+  if(!needToken()){ if(btn) btn.disabled = false; return; }
+  if(!confirm(`Send ${command} on issue #${issue}?`)){ if(btn) btn.disabled = false; return; }
   const r=await wfetch("/api/comment",{method:"POST",
     headers:{"Content-Type":"application/json","X-Bot-Token":token()},
     body:JSON.stringify({issue,command})});
   if(r.ok){toast(`sent ${command} on #${issue}`);setTimeout(refreshAll,5000);}
-  else toast("failed: "+(r.error||""));
+  else { toast("failed: "+(r.error||"")); if(btn) btn.disabled = false; }
 }
 
 async function loadSales(){
@@ -407,8 +408,8 @@ async function refreshAll(){
   document.getElementById("review").innerHTML = s.review.items.length
     ? s.review.items.map(i=>`<div class="item"><a href="${i.url}" target="_blank">#${i.number} ${esc(i.title)}</a>
         <div class="row" style="margin-top:6px">
-          <button class="go" onclick="review(${i.number},'/approve')">✅ Approve</button>
-          <button class="danger" onclick="review(${i.number},'/reject')">✖ Reject</button>
+          <button class="go" onclick="review(${i.number},'/approve',this)">✅ Approve</button>
+          <button class="danger" onclick="review(${i.number},'/reject',this)">✖ Reject</button>
         </div></div>`).join("")
     : '<div class="muted">Nothing awaiting approval.</div>';
 
