@@ -12,6 +12,8 @@
  * 7) POST /api/comment      -> /approve or /reject review issues (X-Bot-Token)
  */
 
+import { TOOLS, toolBySlug, renderTool, renderIndex } from "./tools";
+
 export interface Env {
   BOT_STATE: KVNamespace;
   PROMO_BUCKET: R2Bucket | undefined;
@@ -464,6 +466,26 @@ export default {
     // It appends ?productId=... (and other params) when embedding, so we
     // resolve the product from the query first, then fall back to matching
     // the experience id recorded in the manifest, then to the sole product.
+    // ---- Factory 4: free browser tools ----
+    // Dataset-backed, bring-your-own-key, and carrying the canonical +
+    // JSON-LD + og tags that comparable tool sites omit.
+    if (p === "/tools" || p === "/tools/") {
+      return new Response(renderIndex(url.origin, env.LIGHTNING_ADDRESS ?? ""), {
+        headers: { "content-type": "text/html; charset=utf-8",
+                   "cache-control": "public, max-age=600" } });
+    }
+    if (p.startsWith("/tools/")) {
+      const t = toolBySlug(decodeURIComponent(p.slice(7).replace(/\/$/, "")));
+      if (t) {
+        return new Response(
+          renderTool(t, url.origin, env.LIGHTNING_ADDRESS ?? ""), {
+            headers: { "content-type": "text/html; charset=utf-8",
+                       "cache-control": "public, max-age=600",
+                       "x-tool": t.slug } });
+      }
+      return new Response("Tool not found", { status: 404 });
+    }
+
     // ---- /p/:slug — thin canonical page per pack ----
     // NOT in the buy path: nobody is routed through here. Its whole job is to
     // be a self-canonicalising, indexable target that syndicated copies
@@ -529,7 +551,9 @@ ${items}
       }
 
       if (p === "/sitemap.xml") {
-        const urls = [`${origin}/p`, ...live.map((a: any) => `${origin}/p/${a.slug}`)];
+        const urls = [`${origin}/p`, ...live.map((a: any) => `${origin}/p/${a.slug}`),
+                      `${origin}/tools`,
+                      ...TOOLS.map((t) => `${origin}/tools/${t.slug}`)];
         return new Response(
           `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
           urls.map((u) => `<url><loc>${u}</loc></url>`).join("\n") +
