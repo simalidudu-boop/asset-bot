@@ -1,0 +1,76 @@
+name: factory3-dev-datasets
+# Factory 3: developer datasets + tools -> GitHub + Hugging Face.
+# Standalone (own state/queue/manifest). Monetised by zaps + sponsors, so it
+# needs no marketplace approval and no payment processor.
+on:
+  schedule:
+    - cron: "25 14 * * *"     # clear of factory 1 (06:20)
+  workflow_dispatch:
+    inputs:
+      mock:
+        description: "Mock mode (no LLM keys needed)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  factory3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -q curl_cffi secp256k1 websocket-client
+
+      - name: Run factory 3
+        env:
+          F3_ENABLED: ${{ secrets.F3_ENABLED || '0' }}
+          # LLM cascade
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          # publishing targets
+          GH_TOKEN: ${{ secrets.F3_GH_TOKEN || secrets.GH_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          HF_TOKEN: ${{ secrets.F3_HF_TOKEN || secrets.HF_TOKEN }}
+          HF_USER: ${{ secrets.F3_HF_USER || secrets.HF_USER }}
+          # money rail
+          LIGHTNING_ADDRESS: ${{ secrets.LIGHTNING_ADDRESS }}
+          BOLT12_OFFER: ${{ secrets.BOLT12_OFFER }}
+          NOSTR_NSEC: ${{ secrets.F3_NOSTR_NSEC || secrets.NOSTR_NSEC }}
+          # distribution
+          DIST_POSTING_MODE: ${{ secrets.F3_DIST_POSTING_MODE || 'DRAFT' }}
+          DEVTO_API_KEY: ${{ secrets.F3_DEVTO_API_KEY || secrets.DEVTO_API_KEY }}
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
+          MASTODON_INSTANCE: ${{ secrets.MASTODON_INSTANCE }}
+          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+          IA_ACCESS_KEY: ${{ secrets.IA_ACCESS_KEY }}
+          IA_SECRET_KEY: ${{ secrets.IA_SECRET_KEY }}
+          DISCORD_PROMO_WEBHOOKS: ${{ secrets.DISCORD_PROMO_WEBHOOKS }}
+          DISCORD_ALERT_WEBHOOK: ${{ secrets.DISCORD_ALERT_WEBHOOK }}
+          F3_PAGE_BASE: ${{ secrets.PACK_PAGE_BASE }}
+          F3_ASSETS: "1"
+          MOCK_INPUT: ${{ github.event.inputs.mock == 'true' && '1' || '0' }}
+        run: MOCK=$MOCK_INPUT python3 factory3/run_factory3.py
+
+      - name: Commit factory3 state
+        if: always()
+        run: |
+          git config user.name "asset-bot"
+          git config user.email "bot@asset-bot.local"
+          git add factory3/state factory3/out 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "factory3: state update $(date -u +%F)"
+          for i in 1 2 3; do
+            git pull --rebase -q && git push -q && break
+          done

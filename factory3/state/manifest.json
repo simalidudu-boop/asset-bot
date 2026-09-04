@@ -1,0 +1,9 @@
+{
+  "datasets": [
+    {
+      "name": "prompt-injection-test-cases",
+      "status": "dry",
+      "rows": 26
+    }
+  ]
+}
