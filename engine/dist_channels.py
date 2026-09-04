@@ -953,6 +953,7 @@ def ch_youtube(a: dict) -> dict:
         "title": f"{title} — AI prompt pack"[:100],
         "description": (f"{blurb}\n\n{url}\n" if url else blurb)[:4900],
         "tags": (a.get("keywords") or ["AI", "prompts", "productivity"])[:10],
+        # public by default — unlisted only if explicitly overridden
         "privacy": env("YOUTUBE_PRIVACY") or "public",
     }
     # uploads are slow: allow a long timeout
