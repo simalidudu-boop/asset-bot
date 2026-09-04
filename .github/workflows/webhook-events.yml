@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install deps
-        run: pip install -q weasyprint python-docx markdown curl_cffi
+        run: pip install -q weasyprint python-docx markdown curl_cffi secp256k1 websocket-client
       - name: React to event
         env:
           EVENT_TYPE: ${{ github.event.action }}

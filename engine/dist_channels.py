@@ -183,8 +183,16 @@ def ch_bluesky(a: dict) -> dict:
 
     title, blurb, url, _ = _asset_bits(a)
     body = f"{title}\n\n{blurb}"
-    if len(body) > 240:
-        body = body[:237] + "..."
+
+    # Bluesky counts GRAPHEMES for the 300 limit but facet offsets are BYTES.
+    # Slicing a str at 237 can split a multi-byte character, which makes the
+    # facet indices point mid-codepoint -> 400 InvalidRequest. Truncate on the
+    # ENCODED form at a safe boundary instead, leaving room for the link.
+    budget = 300 - (len(url) + 2 if url else 0) - 4
+    if len(body) > budget:
+        raw = body.encode()[:budget]
+        body = raw.decode("utf-8", errors="ignore").rstrip() + "..."
+
     facets = []
     if url:
         prefix = (body + "\n\n").encode()

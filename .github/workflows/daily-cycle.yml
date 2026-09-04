@@ -51,7 +51,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg pandoc
-          pip install -q weasyprint python-docx markdown curl_cffi
+          pip install -q weasyprint python-docx markdown curl_cffi secp256k1 websocket-client
 
       - name: Run daily cycle
         if: steps.claim.outputs.skip != '1'
