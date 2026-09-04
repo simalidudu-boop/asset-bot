@@ -105,16 +105,31 @@ def one_asset(item: dict, idx: int) -> dict | None:
             except Exception as e:
                 print(f"[daily] image failed: {e}")
 
-        # slideshow video
+        # slideshow video. Prefer the server-side renderer: the local path
+        # needs ffmpeg, which is one CI apt-get failure away from silently
+        # killing video for every asset. Falls back to ffmpeg automatically.
         video = None
+        video_url = None
         if MAKE_VIDEO and images:
-            try:
-                narration = (f"{pack['title']}. {pack['subtitle']}. "
-                             "Get the free pack now — link below.")
-                video = str(media.slideshow_video(
-                    [Path(i) for i in images], narration, slug, duration_per=3.0))
-            except Exception as e:
-                print(f"[daily] video failed: {e}")
+            narration = (f"{pack['title']}. {pack['subtitle']}. "
+                         "Get the free pack now — link below.")
+            if os.environ.get("JSON2VIDEO_API_KEY"):
+                try:
+                    # the renderer fetches these, so they must be public
+                    pub = hosting.upload_images(slug, [Path(i) for i in images])
+                    if pub:
+                        video_url = media.json2video_slideshow(
+                            pub, pack["title"], pack.get("subtitle", ""),
+                            narration)
+                except Exception as e:
+                    print(f"[daily] json2video failed ({e}) — trying ffmpeg")
+            if not video_url:
+                try:
+                    video = str(media.slideshow_video(
+                        [Path(i) for i in images], narration, slug,
+                        duration_per=3.0))
+                except Exception as e:
+                    print(f"[daily] video failed: {e}")
 
         # description (product page)
         description = (f"{pack['description']}\n\n"
@@ -132,9 +147,10 @@ def one_asset(item: dict, idx: int) -> dict | None:
                          for p in deliverable_paths]
             image_urls = images
 
-        # upload video too (used by content engine later)
-        video_url = None
-        if video and not DRY:
+        # upload video too (used by content engine later).
+        # NOTE: do NOT reset video_url here — json2video may already have set
+        # it, and re-initialising would silently discard the rendered URL.
+        if video and not video_url and not DRY:
             try:
                 video_url = hosting.upload_video(slug, Path(video))
                 print(f"[daily] video hosted: {video_url}")

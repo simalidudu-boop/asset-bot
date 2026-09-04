@@ -629,3 +629,43 @@ asset predates the current code. Nothing to fix — real runs generate video.
 remove the ffmpeg dependency entirely by rendering server-side. **APIFlash
 returned 402** (payment required) — screenshot quota exhausted or unpaid.
 Not yet wired; ffmpeg-in-CI already works.
+
+## Server-side video rendering — JSON2Video (2026-09-04)
+
+**You were right that this is the better design.** ffmpeg-in-CI is a fragile
+dependency: one `apt-get` failure silently kills video for every asset, and it
+is invisible until you notice the manifest has no `video_url`. Rendering
+server-side removes the dependency completely.
+
+Verified end to end:
+
+```
+release images -> json2video_slideshow()   ~15s, 785KB / 1.0MB, valid MP4
+               -> ch_youtube() via Apps Script bridge
+               -> https://www.youtube.com/watch?v=pJIo_lFYmW4
+```
+
+No ffmpeg anywhere in that chain.
+
+`media.json2video_slideshow()` is now the **primary** renderer in
+`run_daily.py`, with the local ffmpeg path kept as an automatic fallback. It
+needs **public** image URLs (the renderer fetches them), so it uses the
+release copies — Whop CDN URLs 403 to third parties.
+
+Account: 100 renders/period, **600s render quota** remaining. At ~6s per
+slideshow that is ~100 videos.
+
+**Bug caught while wiring:** `run_daily.py` re-initialised `video_url = None`
+after the render block, which would have silently discarded every rendered URL
+before it reached the manifest. Fixed.
+
+### Shotstack — valid but not wired
+
+The key authenticates against **production** (`v1`) but 403s on `stage`, so it
+is a paid/live key. JSON2Video already covers this need; Shotstack is kept in
+reserve rather than run in parallel.
+
+### APIFlash — REMOVED
+
+Returned **402 Payment Required**. Secrets removed from both workflows; zero
+references remain in the codebase.

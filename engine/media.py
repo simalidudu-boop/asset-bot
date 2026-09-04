@@ -81,6 +81,77 @@ def _cf_tts(text: str) -> bytes | None:
 
 
 # ---------------------------------------------------------------- video
+
+def json2video_slideshow(image_urls: list[str], title: str, subtitle: str = "",
+                         narration: str = "", seconds_each: float = 3.0) -> str:
+    """Render a slideshow server-side via JSON2Video. Returns a public MP4 URL.
+
+    Why this exists: the local path needs ffmpeg, which is a CI apt-get away
+    from breaking every video for every asset. Rendering server-side removes
+    that dependency entirely and takes ~15s.
+
+    Needs PUBLIC image URLs (the renderer fetches them), so pass release
+    images — Whop CDN URLs 403 to third parties.
+    """
+    import time as _t
+    import urllib.request as _u
+
+    key = os.environ.get("JSON2VIDEO_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("JSON2VIDEO_API_KEY not set")
+    if not image_urls:
+        raise RuntimeError("no image urls")
+
+    scenes = []
+    for i, u in enumerate(image_urls[:6]):
+        els = [{"type": "image", "src": u, "duration": seconds_each,
+                "zoom": 1, "resize": "cover"}]
+        if i == 0 and title:
+            els.append({"type": "text", "text": title[:60],
+                        "duration": seconds_each, "start": 0, "y": "38%",
+                        "settings": {"font-size": "64px", "font-family": "Oswald",
+                                     "color": "#ffffff"}})
+            if subtitle:
+                els.append({"type": "text", "text": subtitle[:80],
+                            "duration": seconds_each, "start": 0, "y": "56%",
+                            "settings": {"font-size": "34px",
+                                         "font-family": "Oswald",
+                                         "color": "#e8eaed"}})
+        scenes.append({"comment": f"scene{i}", "duration": seconds_each,
+                       "elements": els})
+
+    body = json.dumps({"resolution": "full-hd", "quality": "high",
+                       "scenes": scenes}).encode()
+    req = _u.Request("https://api.json2video.com/v2/movies", data=body,
+                     headers={"x-api-key": key,
+                              "Content-Type": "application/json"}, method="POST")
+    with _u.urlopen(req, timeout=60) as r:
+        sub = json.loads(r.read())
+    if not sub.get("success"):
+        raise RuntimeError(f"json2video submit failed: {str(sub)[:200]}")
+    project = sub["project"]
+
+    # poll — renders are typically well under a minute
+    for _ in range(40):
+        _t.sleep(6)
+        q = _u.Request(
+            f"https://api.json2video.com/v2/movies?project={project}",
+            headers={"x-api-key": key})
+        with _u.urlopen(q, timeout=45) as r:
+            mv = (json.loads(r.read()) or {}).get("movie") or {}
+        st = mv.get("status")
+        if st == "done":
+            url = mv.get("url")
+            if not url:
+                raise RuntimeError("json2video done but no url")
+            print(f"[media] json2video rendered {mv.get('duration')}s "
+                  f"{mv.get('size')} bytes")
+            return url
+        if st == "error":
+            raise RuntimeError(f"json2video error: {str(mv.get('message'))[:160]}")
+    raise RuntimeError("json2video timed out")
+
+
 def slideshow_video(image_paths: list[Path], narration: str,
                     out_name: str, duration_per: float = 3.0,
                     width: int = 1080, height: int = 1080) -> Path:

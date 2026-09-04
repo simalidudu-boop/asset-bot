@@ -69,7 +69,6 @@ jobs:
           NOSTR_RELAYS: ${{ secrets.NOSTR_RELAYS }}
           JSON2VIDEO_API_KEY: ${{ secrets.JSON2VIDEO_API_KEY }}
           SHOTSTACK_KEY: ${{ secrets.SHOTSTACK_KEY }}
-          APIFLASH_KEY: ${{ secrets.APIFLASH_KEY }}
           BLOGGER_BRIDGE_URL: ${{ secrets.BLOGGER_BRIDGE_URL }}
           BLOGGER_BRIDGE_SECRET: ${{ secrets.BLOGGER_BRIDGE_SECRET }}
           ZENODO_TOKEN: ${{ secrets.ZENODO_TOKEN }}
