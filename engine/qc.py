@@ -147,6 +147,14 @@ def check_run(produced: int, attempted: int, *, phase: str = "daily") -> None:
     nobody knew the factory had stopped.
     """
     if attempted and produced == 0:
+        try:
+            import resilience as rz
+            rz.alert("FACTORY IDLE — 0 assets produced",
+                     f"Attempted {attempted}, produced 0. The run is being "
+                     "failed deliberately so this is visible.",
+                     level="error", dedupe="factory-idle")
+        except Exception:  # noqa: BLE001
+            pass
         raise SystemExit(
             f"[qc] {phase}: produced 0/{attempted} assets — failing the run "
             "so this is visible instead of a green tick on an idle factory")

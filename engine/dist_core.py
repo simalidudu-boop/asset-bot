@@ -238,6 +238,13 @@ def drain(max_jobs: int | None = None) -> dict:
                 stats["failed"] += 1
                 why = "permanent" if res.get("permanent") else "max attempts"
                 print(f"[dist] {ch}: FAILED ({why}) {r['slug']}: {r['error']}")
+                try:
+                    import resilience as rz
+                    rz.alert(f"Channel dead: {ch}",
+                             f"`{r['slug']}` failed ({why})\n`{r['error'][:300]}`",
+                             level="warn", dedupe=f"chan:{ch}:{why}")
+                except Exception:  # noqa: BLE001
+                    pass
             else:
                 # exponential backoff: 1, 2, 4, 8 minutes
                 r["status"] = "retry"
@@ -248,6 +255,17 @@ def drain(max_jobs: int | None = None) -> dict:
 
     _write(rows)
     print(f"[dist] drain: {stats}")
+    # Every live channel failing at once means a systemic problem (network,
+    # secrets wiped, clock skew) rather than one flaky provider.
+    if stats["failed"] and not stats["posted"] and stats["failed"] >= 3:
+        try:
+            import resilience as rz
+            rz.alert("Distribution wholly failing",
+                     f"{stats['failed']} channel jobs failed and none "
+                     "succeeded in this drain.", level="error",
+                     dedupe="dist-total-failure")
+        except Exception:  # noqa: BLE001
+            pass
     return stats
 
 

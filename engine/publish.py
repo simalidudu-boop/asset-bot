@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import whop_client as whop
 import whop_media
 import marketplace  # noqa: E402
+import resilience as rz  # noqa: E402
 import review  # noqa: E402
 
 DRY = os.environ.get("DRY_RUN") == "1" or "--dry-run" in sys.argv
@@ -145,6 +146,8 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
         })
     except Exception as e:  # noqa: BLE001
         print(f"[dist] enqueue skipped: {e}")
+        rz.alert("Distribution enqueue failed", f"`{e}`", level="warn",
+                 dedupe="enqueue-fail")
 
     # FAQs: no product field exists, so attach the FAQ app as an experience
     # (sidebar item) and print the generated copy for the one manual paste.

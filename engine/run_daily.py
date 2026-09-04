@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 import preflight  # noqa: E402
 import qc  # noqa: E402
+import resilience as rz  # noqa: E402
 import topics  # noqa: E402
 import generate_pack  # noqa: E402
 import packaging  # noqa: E402
@@ -99,6 +100,9 @@ def one_asset(item: dict, idx: int) -> dict | None:
                        strict=(not MOCK
                                and os.environ.get("QC_STRICT", "1") != "0")):
             print(f"[daily] {qc_label}: BLOCKED by QC — not publishing")
+            rz.alert(f"QC blocked asset: {qc_label}",
+                     "Pack failed quality gate; see run log for the field-level "
+                     "errors.", level="warn", dedupe=f"qc:{qc_label}")
             return None
 
         built = generate_pack.build_pack_dir(topic, pack, links, OUT / "packs")
@@ -136,6 +140,8 @@ def one_asset(item: dict, idx: int) -> dict | None:
                             narration)
                 except Exception as e:
                     print(f"[daily] json2video failed ({e}) — trying ffmpeg")
+                    rz.alert("Video: JSON2Video failed, falling back to ffmpeg",
+                             f"`{e}`", level="warn", dedupe="j2v-fallback")
             if not video_url:
                 try:
                     video = str(media.slideshow_video(
@@ -143,6 +149,9 @@ def one_asset(item: dict, idx: int) -> dict | None:
                         duration_per=3.0))
                 except Exception as e:
                     print(f"[daily] video failed: {e}")
+                    rz.alert("Video generation failed (both renderers)",
+                             f"`{e}` — asset ships without video.",
+                             level="warn", dedupe="video-dead")
 
         # description (product page)
         description = (f"{pack['description']}\n\n"
@@ -195,6 +204,11 @@ def one_asset(item: dict, idx: int) -> dict | None:
         return res
     except Exception as e:
         print(f"[daily] ASSET FAILED: {e}\n{traceback.format_exc()}")
+        # Was a silent log line — the 0/3 outage went unnoticed for a day.
+        rz.alert(f"Asset generation failed: {str(item.get('topic', '?'))[:60]}",
+                 f"`{type(e).__name__}: {e}`\n```\n"
+                 f"{traceback.format_exc()[-1000:]}\n```",
+                 level="error", dedupe=f"asset:{type(e).__name__}")
         return None
 
 

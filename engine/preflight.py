@@ -156,6 +156,13 @@ def check(phase: str, strict: bool | None = None) -> dict:
     for p in problems:
         _log("FATAL", p)
     if problems and strict:
+        try:
+            import resilience as rz
+            rz.alert("PREFLIGHT FAILED — run aborted",
+                     "\n".join(f"- {p}" for p in problems)[:1500],
+                     level="error", dedupe="preflight")
+        except Exception:  # noqa: BLE001
+            pass
         raise PreflightError(f"{len(problems)} fatal problem(s); aborting before "
                              "doing damage. See ::error:: lines above.")
     if not problems:
