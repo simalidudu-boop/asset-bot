@@ -255,6 +255,117 @@
           "answer": "No. Every prompt works on the free tiers of ChatGPT, Claude and Gemini."
         }
       ]
+    },
+    {
+      "slug": "ai-social-content-sprint-pack",
+      "title": "AI Social Content Sprint Pack",
+      "topic": "Social media caption generators and content calendars",
+      "kind": "prompt-pack",
+      "free": true,
+      "price": 0.0,
+      "product_id": "prod_RpfQAikSKGhFx",
+      "status": "live",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/ai-social-content-sprint-pack",
+      "created": "2026-09-04T15:45:48Z",
+      "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-04-6e25669e709c50b2.mp4",
+      "cover_status": "set",
+      "gallery_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/ai-social-content-sprint-pack-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/ai-social-content-sprint-pack-img-2-v2.jpg"
+      ],
+      "marketplace_status": "pending_review",
+      "faq": [
+        {
+          "question": "How do I ensure the captions match my brand voice?",
+          "answer": "You can specify the desired tone (e.g., 'professional', 'playful', 'authoritative') directly in the prompt. For more advanced brand voice consistency, consider custom instructions in your AI tool or our Pro Pack features."
+        },
+        {
+          "question": "Can I use these prompts for different social media platforms?",
+          "answer": "Yes, many prompts allow you to specify the platform (e.g., Instagram, LinkedIn, X). The AI will tailor the caption length, style, and hashtag usage to best fit that platform's conventions. Adjust as needed for best results."
+        },
+        {
+          "question": "Do I need a paid AI subscription to use this pack?",
+          "answer": "The prompts are designed for any modern large language model (LLM). While some models are free, using services like ChatGPT Plus or Claude Pro often provides better quality, longer outputs, and higher rate limits for more extensive use."
+        },
+        {
+          "question": "What exactly do I get?",
+          "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
+        }
+      ]
+    },
+    {
+      "slug": "legal-draft-pro",
+      "title": "Legal Draft Pro",
+      "topic": "Legal contract drafting and compliance checklists",
+      "kind": "prompt-pack",
+      "free": false,
+      "price": 14,
+      "product_id": "prod_wr1JXUmiACthc",
+      "status": "pending_approval",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/legal-draft-pro",
+      "created": "2026-09-04T15:47:00Z",
+      "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-04-16544ec0889f91c8.mp4",
+      "cover_status": "set",
+      "gallery_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/legal-draft-pro-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/legal-draft-pro-img-2-v2.jpg"
+      ],
+      "marketplace_status": null,
+      "faq": [
+        {
+          "question": "What exactly do I get?",
+          "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
+        },
+        {
+          "question": "Do I need a paid AI subscription?",
+          "answer": "No. Every prompt works on the free tiers of ChatGPT, Claude and Gemini."
+        },
+        {
+          "question": "How fast do I get access?",
+          "answer": "Immediately. The download links are on this page the moment you check out."
+        },
+        {
+          "question": "Do I need any technical skill?",
+          "answer": "None. Copy a prompt, paste it into your AI tool, and replace the bracketed placeholders with your own details."
+        }
+      ]
+    },
+    {
+      "slug": "job-readiness-accelerator",
+      "title": "Job Readiness Accelerator",
+      "topic": "Job interview preparation and resume optimization",
+      "kind": "prompt-pack",
+      "free": false,
+      "price": 11,
+      "product_id": "prod_eRJCEemgL9WBh",
+      "status": "pending_approval",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/job-readiness-accelerator",
+      "created": "2026-09-04T15:48:09Z",
+      "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-04-7dec2c246008386c.mp4",
+      "cover_status": "set",
+      "gallery_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/job-readiness-accelerator-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/job-readiness-accelerator-img-2-v2.jpg"
+      ],
+      "marketplace_status": null,
+      "faq": [
+        {
+          "question": "How do I get started with these prompts?",
+          "answer": "Copy the prompt text, paste it into your AI tool (ChatGPT, Claude, etc.), and replace the bracketed placeholders with your specific details."
+        },
+        {
+          "question": "Can I use these for any job?",
+          "answer": "Yes, these prompts are designed to be adaptable. Just tailor the input details to your target role and company."
+        },
+        {
+          "question": "Do I need a paid AI subscription?",
+          "answer": "No, these prompts work with free versions of most popular AI models."
+        },
+        {
+          "question": "What exactly do I get?",
+          "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
+        }
+      ]
     }
   ],
   "posts": [
