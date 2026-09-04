@@ -129,6 +129,11 @@ def ch_hashnode(a: dict) -> dict:
                       headers={"Authorization": env("HASHNODE_PAT")},
                       json_body={"query": mutation, "variables": {"input": inp}})
     b = jbody(text)
+    if code in (301, 302) or "changelog" in text[:400]:
+        return result(False, permanent=True,
+                      error="Hashnode retired FREE GraphQL API access "
+                            "(2026-05-13). Both reads and writes now require a "
+                            "Pro plan on the publication.")
     if code == 200 and not b.get("errors"):
         post = (((b.get("data") or {}).get("publishPost") or {}).get("post")) or {}
         return result(True, str(post.get("id", "")), str(post.get("url", "")))
@@ -630,6 +635,138 @@ def ch_tumblr(a: dict) -> dict:
 
 # -------------------------------------------------- Blogger (post by email) ---
 def ch_blogger(a: dict) -> dict:
+    """Publish to Blogger via its Mail2Post secret address.
+
+    Sent through the Apps Script bridge (GmailApp), so there is NO SMTP server,
+    no app password and no relay to configure — it sends as the script owner.
+    Reuses YOUTUBE_BRIDGE_URL/SECRET; set BLOGGER_EMAIL in Script Properties.
+    """
+    title, blurb, url, image = _asset_bits(a)
+    html = f"<p>{blurb}</p>"
+    if image:
+        html += f'<p><img src="{image}" alt="{title}" style="max-width:100%"></p>'
+    for f in (a.get("faq") or [])[:5]:
+        html += f"<p><b>{f.get('question','')}</b><br>{f.get('answer','')}</p>"
+    if url:
+        html += f'<p><a href="{url}">Get it here</a></p>'
+
+    code, text = http("POST", env("BLOGGER_BRIDGE_URL", "YOUTUBE_BRIDGE_URL"),
+                      json_body={"secret": env("BLOGGER_BRIDGE_SECRET",
+                                               "YOUTUBE_BRIDGE_SECRET"),
+                                 "action": "blogger",
+                                 "title": title[:200],
+                                 "html": html,
+                                 "text": blurb + (f"\n\n{url}" if url else ""),
+                                 "blogEmail": env("BLOGGER_EMAIL")},
+                      timeout=120)
+    b = jbody(text)
+    if code == 200 and b.get("ok"):
+        return result(True, "", "", f"emailed to {b.get('to','blogger')}")
+    err = str(b.get("error") or f"http_{code}")
+    return result(False, error=err[:200],
+                  permanent=err in ("unauthorized", "no BLOGGER_EMAIL configured",
+                                    "title required"))
+
+
+# ------------------------------------------------------ Hugging Face Hub ---
+def ch_huggingface(a: dict) -> dict:
+    """Create/refresh a dataset repo and commit a README for the pack.
+
+    Free, permanent, high-authority. NOTE: the old
+    `/upload/{rev}/{path}` endpoint is **retired (410)** — you must use the
+    NDJSON `/commit/{rev}` endpoint.
+    """
+    title, blurb, url, image = _asset_bits(a)
+    user = env("HF_USER") or "SharkSkin"
+    repo = f"{user}/assetbot-{(a.get('slug') or 'pack')[:50]}"
+    hdr = {"Authorization": f"Bearer {env('HF_TOKEN')}"}
+
+    # idempotent: 409 just means it already exists
+    code, text = http("POST", "https://huggingface.co/api/repos/create",
+                      headers=hdr,
+                      json_body={"type": "dataset",
+                                 "name": f"assetbot-{(a.get('slug') or 'pack')[:50]}",
+                                 "private": False})
+    if code not in (200, 201, 409):
+        return result(False, error=f"repo create http_{code}: {text[:120]}",
+                      permanent=code in (400, 401, 403))
+
+    md = f"# {title}\n\n{blurb}\n\n"
+    if image:
+        md += f"![{title}]({image})\n\n"
+    for f in (a.get("faq") or []):
+        md += f"**{f.get('question','')}**\n\n{f.get('answer','')}\n\n"
+    if url:
+        md += f"[Get it here]({url})\n"
+
+    lines = [
+        json.dumps({"key": "header", "value": {"summary": f"publish {title}"}}),
+        json.dumps({"key": "file", "value": {
+            "path": "README.md", "encoding": "base64",
+            "content": base64.b64encode(md.encode()).decode()}}),
+    ]
+    code, text = http("POST",
+                      f"https://huggingface.co/api/datasets/{repo}/commit/main",
+                      headers={**hdr, "Content-Type": "application/x-ndjson"},
+                      data=("\n".join(lines) + "\n").encode())
+    if code == 200 and jbody(text).get("success"):
+        return result(True, repo, f"https://huggingface.co/datasets/{repo}")
+    return result(False, error=f"commit http_{code}: {text[:150]}",
+                  permanent=code in (400, 401, 403, 404))
+
+
+# ----------------------------------------------------------------- Tumblr ---
+def _oauth1_header(method: str, url: str, params: dict) -> str:
+    """Minimal OAuth 1.0a HMAC-SHA1 signer (Tumblr needs it; no SDK here)."""
+    import hashlib
+    import hmac
+    import random
+    import string
+    import time as _t
+    from urllib.parse import quote, urlencode
+
+    oauth = {
+        "oauth_consumer_key": env("TUMBLR_CONSUMER_KEY"),
+        "oauth_token": env("TUMBLR_TOKEN"),
+        "oauth_signature_method": "HMAC-SHA1",
+        "oauth_timestamp": str(int(_t.time())),
+        "oauth_nonce": "".join(random.choices(string.ascii_letters + string.digits, k=32)),
+        "oauth_version": "1.0",
+    }
+    allp = {**params, **oauth}
+    norm = urlencode(sorted((k, str(v)) for k, v in allp.items()), quote_via=quote)
+    base = "&".join([method.upper(), quote(url, safe=""), quote(norm, safe="")])
+    key = (quote(env("TUMBLR_CONSUMER_SECRET"), safe="") + "&"
+           + quote(env("TUMBLR_TOKEN_SECRET"), safe=""))
+    sig = base64.b64encode(
+        hmac.new(key.encode(), base.encode(), hashlib.sha1).digest()).decode()
+    oauth["oauth_signature"] = sig
+    return "OAuth " + ", ".join(f'{quote(k, safe="")}="{quote(v, safe="")}"'
+                                for k, v in oauth.items())
+
+
+def ch_tumblr(a: dict) -> dict:
+    title, blurb, url, image = _asset_bits(a)
+    blog = env("TUMBLR_BLOG_URL") or "affiliatemonk.tumblr.com"
+    api = f"https://api.tumblr.com/v2/blog/{blog}/post"
+    body = f"{blurb}<br><br><a href=\"{url}\">Get it here</a>" if url else blurb
+    params = {"type": "text", "title": title, "body": body,
+              "tags": ",".join((a.get("keywords") or ["ai", "productivity"])[:5]),
+              "state": "published"}
+    code, text = http("POST", api, headers={
+        "Authorization": _oauth1_header("POST", api, params),
+        "Content-Type": "application/x-www-form-urlencoded"}, form=params)
+    b = jbody(text)
+    if code in (200, 201):
+        pid = str(((b.get("response") or {}).get("id")) or "")
+        return result(True, pid, f"https://{blog}/post/{pid}" if pid else "")
+    msg = (b.get("meta") or {}).get("msg") or text[:120]
+    return result(False, error=f"http_{code}: {msg}",
+                  permanent=code in (400, 401, 403, 404))
+
+
+# -------------------------------------------------- Blogger (post by email) ---
+def ch_blogger(a: dict) -> dict:
     """Blogger's Mail2Post: send an email to the secret address and it posts.
 
     Needs an SMTP relay (BLOGGER_SMTP_* ). No SMTP configured = skipped by the
@@ -831,6 +968,92 @@ def ch_youtube(a: dict) -> dict:
     return result(False, error=err[:200], permanent=perm)
 
 
+
+# ------------------------------------------------------------------ Nostr ---
+def _bech32_decode_to_hex(key: str) -> str:
+    """nsec/npub (bech32) -> 32-byte hex. Returns input unchanged if already hex."""
+    if not key.startswith(("nsec1", "npub1")):
+        return key
+    CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+    data = key.rsplit("1", 1)[1]
+    vals = [CHARSET.index(c) for c in data[:-6]]  # strip checksum
+    acc, bits, out = 0, 0, bytearray()
+    for v in vals:
+        acc = (acc << 5) | v
+        bits += 5
+        while bits >= 8:
+            bits -= 8
+            out.append((acc >> bits) & 0xFF)
+    return out.hex()
+
+
+def ch_nostr(a: dict) -> dict:
+    """Publish a note to Nostr relays (NIP-01).
+
+    Censorship-resistant, free, no account approval, no rate limits, and
+    explicitly bot-tolerant — there is no platform to ban you. Signed
+    locally with secp256k1 Schnorr; the note is pushed to several relays and
+    counts as success if ANY relay accepts it.
+    """
+    import hashlib
+    import time as _t
+    try:
+        import secp256k1
+    except ImportError:
+        return result(False, permanent=True,
+                      error="secp256k1 not installed (pip install secp256k1)")
+    try:
+        from websocket import create_connection
+    except ImportError:
+        return result(False, permanent=True,
+                      error="websocket-client not installed")
+
+    sk_hex = _bech32_decode_to_hex(env("NOSTR_NSEC"))
+    if len(sk_hex) != 64:
+        return result(False, error="bad NOSTR_NSEC", permanent=True)
+    priv = secp256k1.PrivateKey(bytes.fromhex(sk_hex))
+    pubkey = priv.pubkey.serialize()[1:].hex()   # x-only
+
+    title, blurb, url, image = _asset_bits(a)
+    content = f"{title}\n\n{blurb}"
+    if image:
+        content += f"\n\n{image}"
+    if url:
+        content += f"\n\n{url}"
+
+    tags = [["t", str(k).lower().replace(" ", "")]
+            for k in (a.get("keywords") or ["ai", "prompts"])[:5]]
+    created = int(_t.time())
+    # NIP-01 serialisation: [0, pubkey, created_at, kind, tags, content]
+    ser = json.dumps([0, pubkey, created, 1, tags, content],
+                     separators=(",", ":"), ensure_ascii=False)
+    eid = hashlib.sha256(ser.encode()).hexdigest()
+    sig = priv.schnorr_sign(bytes.fromhex(eid), None, raw=True).hex()
+    event = {"id": eid, "pubkey": pubkey, "created_at": created, "kind": 1,
+             "tags": tags, "content": content, "sig": sig}
+
+    relays = [r.strip() for r in (env("NOSTR_RELAYS") or
+              "wss://relay.damus.io,wss://nos.lol,wss://relay.nostr.band,"
+              "wss://nostr.mom").split(",") if r.strip()]
+    ok, last = 0, ""
+    for r in relays:
+        try:
+            ws = create_connection(r, timeout=12)
+            ws.send(json.dumps(["EVENT", event]))
+            resp = ws.recv()
+            ws.close()
+            if '"OK"' in resp and "true" in resp:
+                ok += 1
+            else:
+                last = f"{r}: {resp[:80]}"
+        except Exception as e:  # noqa: BLE001
+            last = f"{r}: {e}"[:90]
+    if ok:
+        return result(True, eid, f"https://njump.me/{eid}",
+                      "" if ok == len(relays) else f"{ok}/{len(relays)} relays")
+    return result(False, error=last or "no relay accepted the event")
+
+
 # ---------------------------------------------------------------- registry ---
 # Adding a channel = an adapter above + one line here. Nothing else changes.
 # Channels whose keys are absent are skipped silently by dist_core.has_keys.
@@ -852,8 +1075,9 @@ register("mastodon",  ch_mastodon,  ["MASTODON_ACCESS_TOKEN"])
 register("zenodo",    ch_zenodo,    ["ZENODO_TOKEN"])
 register("indexnow",  ch_indexnow,  ["INDEXNOW_KEY"])
 register("youtube",   ch_youtube,   ["YOUTUBE_BRIDGE_URL", "YOUTUBE_BRIDGE_SECRET"])
+register("nostr",     ch_nostr,     ["NOSTR_NSEC"])
 register("tumblr",    ch_tumblr,    ["TUMBLR_CONSUMER_KEY", "TUMBLR_CONSUMER_SECRET",
                                      "TUMBLR_TOKEN", "TUMBLR_TOKEN_SECRET"])
-register("blogger",   ch_blogger,   ["BLOGGER_EMAIL", "BLOGGER_SMTP_HOST",
-                                     "BLOGGER_SMTP_USER", "BLOGGER_SMTP_PASS"])
+register("blogger",   ch_blogger,   [("BLOGGER_BRIDGE_URL", "YOUTUBE_BRIDGE_URL"),
+                                     ("BLOGGER_BRIDGE_SECRET", "YOUTUBE_BRIDGE_SECRET")])
 register("buffer",    ch_buffer,    ["BUFFER_ACCESS_TOKEN", "BUFFER_CHANNEL_IDS"])

@@ -92,6 +92,14 @@ function doPost(e) {
   if (!_secret() || body.secret !== _secret()) {
     return _json({ ok: false, error: 'unauthorized' });
   }
+  // action router — default stays YouTube for backwards compatibility
+  if (body.action === 'blogger') {
+    return _json(_bloggerPost(body));
+  }
+  if (body.action === 'quota') {
+    return _json({ ok: true, gmailRemaining: _gmailQuota() });
+  }
+
   if (typeof YouTube === 'undefined') {
     return _json({ ok: false, error: 'advanced_service_not_enabled' });
   }
@@ -130,4 +138,43 @@ function doPost(e) {
   } catch (err) {
     return _json({ ok: false, error: String(err) });
   }
+}
+
+/**
+ * ============================================================================
+ *  BLOGGER MAIL2POST BRIDGE
+ * ============================================================================
+ *  Blogger can publish a post from an email sent to a secret address. Apps
+ *  Script has GmailApp built in, so no SMTP server, no app password and no
+ *  relay credentials are needed — it sends as the script owner.
+ *
+ *  POST /exec with { secret, action: "blogger", title, html, blogEmail }
+ *
+ *  Set BLOGGER_EMAIL in Script Properties (or pass blogEmail per request):
+ *      BLOGGER_EMAIL = simalidudu.goatranger@blogger.com
+ *
+ *  Gmail quota on a free account is ~100 recipients/day — far more than the
+ *  1-2 posts/day this pipeline produces.
+ */
+function _bloggerPost(body) {
+  var to = body.blogEmail ||
+    PropertiesService.getScriptProperties().getProperty('BLOGGER_EMAIL') || '';
+  if (!to) return { ok: false, error: 'no BLOGGER_EMAIL configured' };
+  if (!body.title) return { ok: false, error: 'title required' };
+
+  try {
+    // Blogger uses the SUBJECT as the post title and the BODY as the content.
+    GmailApp.sendEmail(to, String(body.title).substring(0, 200), body.text || '', {
+      htmlBody: body.html || body.text || '',
+      name: body.fromName || 'Asset Bot'
+    });
+    return { ok: true, to: to, title: body.title };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+}
+
+/** Remaining Gmail sends today — useful for the dashboard. */
+function _gmailQuota() {
+  try { return MailApp.getRemainingDailyQuota(); } catch (e) { return -1; }
 }

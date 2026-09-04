@@ -571,3 +571,61 @@ adapter is `public`, so this only stays unlisted while that env var is set.
 - `videos` count in the health check reflects *public* videos only, so it
   stays at 5 after an unlisted upload — not a failure.
 - Only 1 of 6 assets currently has a `video_url`; the rest skip cleanly.
+
+## Round 5 — 2026-09-04
+
+| Channel | Result |
+|---|---|
+| **nostr** | ✅ [note live](https://njump.me/bc055171625b0399e7fe33c192d42af92ef8372414dec3e9b9080ced5dcf3458), verified on `wss://nos.lol` |
+| **tumblr** | ✅ [post live](https://roblox-updates.tumblr.com/post/826822594905964544) — new tokens work |
+| **archive** | ✅ [item live](https://archive.org/details/assetbot-zero-click-content-machine) |
+| **blogger** | ✅ rewired to Apps Script GmailApp — no SMTP needed |
+| **hashnode** | ❌ **API is now PAID** |
+
+### Nostr — good call, and a key mismatch to know about
+
+Signs NIP-01 events locally (secp256k1 Schnorr) and pushes to 4 relays;
+succeeds if any accept. No account approval, no rate limits, nothing to ban.
+
+**The nsec in keys.json and the npub you pasted are DIFFERENT accounts:**
+
+```
+nsec (keys.json) -> pubkey d4d7c4a683b71dcb59825b4dde60e9c8fb00c837eb0657fb9ecd6570ecc37e45
+npub (pasted)    -> pubkey b40535de25b9d5621edd7f7c18e60c4c6fcacdbedd83430a0da76307f381cd2f
+```
+
+Both decode cleanly to 32 bytes, so neither is malformed — they are simply two
+identities. The note was published under the **nsec** one, since that is the
+only one we hold a private key for. If `npub1ksznth…` is the account you
+actually want, supply its nsec.
+
+### Tumblr — the blog was wrong, not the tokens
+
+The new tokens authenticate (`/v2/user/info` → 200). But the account owns
+**`roblox-updates`**, not `affiliatemonk` — hence the old 404.
+`TUMBLR_BLOG_URL=roblox-updates.tumblr.com`.
+
+### Blogger — no SMTP required
+
+`_bloggerPost()` added to the Apps Script bridge: `POST {action:"blogger"}`
+sends via **GmailApp** as the script owner. No SMTP host, no app password.
+Set `BLOGGER_EMAIL` in Script Properties. Gmail free quota ~100/day.
+
+### Hashnode — retired free API
+
+`gql.hashnode.com` now 301s to a changelog: *"We're retiring free GraphQL API
+access. Every API request, queries and mutations, now requires a Pro plan."*
+(2026-05-13, citing scraper abuse.) The adapter detects the redirect and
+returns a clear permanent error. **Needs a paid Hashnode Pro plan.**
+
+### Video generation — not broken
+
+`ffmpeg` is missing in this sandbox (`FileNotFoundError: 'ffmpeg'`), but
+`daily-cycle.yml` **does** `apt-get install ffmpeg`, so CI is fine. Of 5
+assets, 3 are `status=dry` mock runs that skip media by design, and 1 live
+asset predates the current code. Nothing to fix — real runs generate video.
+
+**JSON2Video** (`200`) and **Shotstack** (auth OK) are both valid and would
+remove the ffmpeg dependency entirely by rendering server-side. **APIFlash
+returned 402** (payment required) — screenshot quota exhausted or unpaid.
+Not yet wired; ffmpeg-in-CI already works.

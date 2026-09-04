@@ -68,6 +68,13 @@ jobs:
           YOUTUBE_BRIDGE_SECRET: ${{ secrets.YOUTUBE_BRIDGE_SECRET }}
           YOUTUBE_PRIVACY: ${{ secrets.YOUTUBE_PRIVACY }}
           MASTODON_EXTRA: ${{ secrets.MASTODON_EXTRA }}
+          NOSTR_NSEC: ${{ secrets.NOSTR_NSEC }}
+          NOSTR_RELAYS: ${{ secrets.NOSTR_RELAYS }}
+          JSON2VIDEO_API_KEY: ${{ secrets.JSON2VIDEO_API_KEY }}
+          SHOTSTACK_KEY: ${{ secrets.SHOTSTACK_KEY }}
+          APIFLASH_KEY: ${{ secrets.APIFLASH_KEY }}
+          BLOGGER_BRIDGE_URL: ${{ secrets.BLOGGER_BRIDGE_URL }}
+          BLOGGER_BRIDGE_SECRET: ${{ secrets.BLOGGER_BRIDGE_SECRET }}
           ZENODO_TOKEN: ${{ secrets.ZENODO_TOKEN }}
           ZENODO_PUBLISH: ${{ secrets.ZENODO_PUBLISH }}
           ZENODO_CREATOR: ${{ secrets.ZENODO_CREATOR }}
