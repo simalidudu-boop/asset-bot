@@ -144,6 +144,117 @@
       "cover_status": null,
       "gallery_images": [],
       "faq": []
+    },
+    {
+      "slug": "local-business-marketing-toolkit",
+      "title": "Local Business Marketing Toolkit",
+      "topic": "Small business marketing strategy and copywriting",
+      "kind": "prompt-pack",
+      "free": true,
+      "price": 0.0,
+      "product_id": "prod_FeENTjgvOtr3m",
+      "status": "live",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/local-business-marketing-toolkit",
+      "created": "2026-09-04T15:35:54Z",
+      "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-04-3e108d987c6852f1.mp4",
+      "cover_status": "set",
+      "gallery_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/local-business-marketing-toolkit-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/local-business-marketing-toolkit-img-2-v2.jpg"
+      ],
+      "marketplace_status": "pending_review",
+      "faq": [
+        {
+          "question": "What exactly do I get?",
+          "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
+        },
+        {
+          "question": "Do I need a paid AI subscription?",
+          "answer": "No. Every prompt works on the free tiers of ChatGPT, Claude and Gemini."
+        },
+        {
+          "question": "How fast do I get access?",
+          "answer": "Immediately. The download links are on this page the moment you check out."
+        },
+        {
+          "question": "Do I need any technical skill?",
+          "answer": "None. Copy a prompt, paste it into your AI tool, and replace the bracketed placeholders with your own details."
+        }
+      ]
+    },
+    {
+      "slug": "real-estate-listing-pitch-deck-ai-toolkit",
+      "title": "Real Estate Listing & Pitch Deck AI Toolkit",
+      "topic": "Real estate property listing descriptions and investor pitch decks",
+      "kind": "prompt-pack",
+      "free": false,
+      "price": 11,
+      "product_id": "prod_h5lE2NlIiej9M",
+      "status": "pending_approval",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/real-estate-listing-pitch-deck-ai-toolkit",
+      "created": "2026-09-04T15:37:00Z",
+      "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-04-b35cef7a76fdae26.mp4",
+      "cover_status": "set",
+      "gallery_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/real-estate-listing-pitch-deck-ai-toolkit-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/real-estate-listing-pitch-deck-ai-toolkit-img-2-v2.jpg"
+      ],
+      "marketplace_status": null,
+      "faq": [
+        {
+          "question": "How do I customize these prompts for my specific properties?",
+          "answer": "Replace the bracketed placeholders like `[number]`, `[property_type]`, and `[key_feature_1]` with your actual property details. The more specific you are, the better the AI's output will be."
+        },
+        {
+          "question": "Which AI model should I use with these prompts?",
+          "answer": "These prompts are designed to work with any advanced large language model (LLM) such as GPT-3.5, GPT-4, Claude, or Gemini. Experiment to find which model gives you the best results for your specific needs."
+        },
+        {
+          "question": "Are these prompts suitable for both residential and commercial real estate?",
+          "answer": "Yes, this pack includes prompts tailored for both residential listings (standard, luxury, short-term rental) and investment properties which can apply to multi-family or commercial assets, as well as investor pitch deck content."
+        },
+        {
+          "question": "What exactly do I get?",
+          "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
+        }
+      ]
+    },
+    {
+      "slug": "career-accelerator-mid-career-resume-cover-letter-pack",
+      "title": "Career Accelerator: Mid-Career Resume & Cover Letter Pack",
+      "topic": "Professional resume optimization and cover letter generation for mid-career roles",
+      "kind": "prompt-pack",
+      "free": false,
+      "price": 11,
+      "product_id": "prod_JZgMqBV4fRYwX",
+      "status": "pending_approval",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/career-accelerator-mid-career-resume-cover-letter-pack",
+      "created": "2026-09-04T15:38:50Z",
+      "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-04-e96906401c514f1b.mp4",
+      "cover_status": "set",
+      "gallery_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/career-accelerator-mid-career-resume-cover-letter-pack-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/career-accelerator-mid-career-resume-cover-letter-pack-img-2-v2.jpg"
+      ],
+      "marketplace_status": null,
+      "faq": [
+        {
+          "question": "Is this pack suitable for entry-level positions?",
+          "answer": "While the core principles apply, this pack is specifically tailored for mid-career professionals. The prompts and skills focus on leveraging substantial experience and navigating more complex job descriptions, which might be overkill for entry-level roles."
+        },
+        {
+          "question": "Do I need any special software to use these prompts?",
+          "answer": "No, you only need access to an AI model (like ChatGPT, Claude, Gemini) to use the prompts. For the skills section, basic Python knowledge and installation are recommended to run the code snippets."
+        },
+        {
+          "question": "What exactly do I get?",
+          "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
+        },
+        {
+          "question": "Do I need a paid AI subscription?",
+          "answer": "No. Every prompt works on the free tiers of ChatGPT, Claude and Gemini."
+        }
+      ]
     }
   ],
   "posts": [
