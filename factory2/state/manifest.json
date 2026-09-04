@@ -4,6 +4,19 @@
       "slug": "accept-bitcoin-without-kyc",
       "title": "How to Accept Bitcoin Payments Without KYC",
       "status": "dry"
+    },
+    {
+      "slug": "accept-bitcoin-payments-no-kyc-small-business",
+      "title": "Accept Bitcoin Payments Without KYC: Small Business Guide",
+      "topic": "how to accept bitcoin payments as a small business without KYC",
+      "page_url": "",
+      "programmes": [
+        "bitbo",
+        "trezor",
+        "coolwallet"
+      ],
+      "created": "2026-09-04T19:27:11Z",
+      "status": "live"
     }
   ]
 }
