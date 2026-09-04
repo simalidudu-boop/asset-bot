@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>asset-bot — Agent Onboarding &amp; Architecture</title>
+<style>
+  :root{--bg:#0f1115;--card:#161922;--line:#2a2e37;--fg:#e8eaed;--mut:#9aa3b2;
+        --ok:#2ecc71;--warn:#f39c12;--bad:#e74c3c;--acc:#7cc4ff}
+  *{box-sizing:border-box}
+  body{margin:0;padding:32px 20px 80px;background:var(--bg);color:var(--fg);
+       font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+  .w{max-width:1000px;margin:0 auto}
+  h1{font-size:30px;margin:0 0 6px}
+  h2{font-size:21px;margin:38px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+  h3{font-size:16px;margin:22px 0 8px;color:var(--acc)}
+  .sub{color:var(--mut);margin:0 0 22px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+        padding:16px 18px;margin:14px 0}
+  .danger{border-color:#5c2b2b;background:#1e1416}
+  .good{border-color:#245c3a;background:#121c16}
+  code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+  code{background:#0b0d12;border:1px solid var(--line);border-radius:5px;padding:2px 6px}
+  pre{background:#0b0d12;border:1px solid var(--line);border-radius:8px;
+      padding:14px;overflow-x:auto;line-height:1.5}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)} .mut{color:var(--mut)}
+  ul{margin:8px 0 8px 20px;padding:0} li{margin:5px 0}
+  .pill{display:inline-block;background:#0b0d12;border:1px solid var(--line);
+        border-radius:20px;padding:2px 10px;font-size:12px;margin:2px 4px 2px 0}
+  a{color:var(--acc)}
+</style>
+</head>
+<body><div class="w">
+
+<h1>asset-bot — Agent Onboarding</h1>
+<p class="sub">Read this file top to bottom and you will understand the entire
+system: what it does, how it runs, every credential, every known trap, and
+what is actually broken. Written for an LLM agent picking this up cold.</p>
+
+<div class="card danger">
+<b>⚠️ READ FIRST — three facts that change every decision</b>
+<ul>
+<li><b>The operator is in Iran.</b> Comprehensive OFAC sanctions apply. Gumroad,
+Ko-fi, Payhip, Lemon Squeezy, Stripe and PayPal <b>cannot pay out</b>. Do not
+propose them as revenue. Do not build on USDT/Tron — Tether has frozen ~$475M
+of Iran-linked USDT and Iran's whole digital-asset sector is sanctionable.
+<b>Bitcoin Lightning zaps are the only working rail.</b></li>
+<li><b>This API surface lies.</b> Four separate endpoints returned
+<code>200 OK</code> for writes that never persisted (Whop <code>banner_image</code>,
+Whop <code>labels</code>, Whop app <code>base_url</code>, Sell.app product create).
+<b>Always verify a write by reading it back.</b></li>
+<li><b>Green does not mean working.</b> On 2026-09-04 the daily run reported
+success while producing 0/3 assets. QC + alerting now exist specifically to
+stop that. Never trust an exit code alone.</li>
+</ul>
+</div>
+
+<h2>1. What this system is</h2>
+<p>An autonomous digital-product factory. Every day it invents a topic,
+generates an AI prompt pack, renders images and video, packages it
+(MD/PDF/DOCX), publishes it as a product on Whop, and syndicates it across
+~22 channels. A Cloudflare Worker is the control plane and public front end.</p>
+
+<pre>topics → generate_pack (LLM) → QC gate → media (images+video)
+      → packaging (MD/PDF/DOCX) → hosting (GitHub Releases)
+      → publish (Whop product + cover + FAQ + marketplace submit)
+      → dist_core queue → 22 channel adapters
+      → Worker /p/:slug canonical page (+ zap CTA)</pre>
+
+<h2>2. Live infrastructure</h2>
+<table>
+<tr><th>Thing</th><th>Value</th></tr>
+<tr><td>Repo</td><td><code>github.com/simalidudu-boop/asset-bot</code> (branch <code>main</code>)</td></tr>
+<tr><td>Command Center</td><td><a href="https://asset-bot-edge.simalidudu.workers.dev">asset-bot-edge.simalidudu.workers.dev</a></td></tr>
+<tr><td>Pack pages</td><td><code>/p/:slug</code>, index <code>/p</code>, <code>/sitemap.xml</code>, <code>/rss.xml</code>, <code>/robots.txt</code></td></tr>
+<tr><td>Whop store</td><td><code>whop.com/the-algorithmic-daemon-concern</code></td></tr>
+<tr><td>Whop company</td><td><code>biz_A79oVYva4QTT8Z</code></td></tr>
+<tr><td>CF account</td><td><code>0c6059d950fad268faa25cbb6d21ef77</code></td></tr>
+<tr><td>KV namespace</td><td><code>67f47c2c7b7a405e846c3b5e75d8450b</code> (<code>BOT_STATE</code>)</td></tr>
+<tr><td>Nostr pubkey</td><td><code>d4d7c4a683b71dcb59825b4dde60e9c8fb00c837eb0657fb9ecd6570ecc37e45</code></td></tr>
+<tr><td>Lightning</td><td><code>SharkSkin@coinos.io</code> — <span class="ok">verified, allowsNostr:true</span></td></tr>
+</table>
+
+<h2>3. Schedules &amp; cron architecture</h2>
+<p>GitHub's <code>schedule:</code> is best-effort and silently drops runs. So
+<b>Cloudflare Workers cron is the primary trigger</b> (it fires
+<code>workflow_dispatch</code>), and GitHub's own schedule is a dead-man's
+fallback that calls <code>POST /api/cronclaim</code> and no-ops if the Worker
+already ran.</p>
+<table>
+<tr><th>Workflow</th><th>CF cron (primary)</th><th>GH cron (fallback)</th></tr>
+<tr><td><code>daily-cycle.yml</code></td><td><code>20 6 * * *</code></td><td><code>50 7 * * *</code></td></tr>
+<tr><td><code>content-posting.yml</code></td><td><code>0 1,4,7,10,13,16,19,22 * * *</code></td><td><code>40 2,5,…,23 * * *</code></td></tr>
+<tr><td><code>review-queue.yml</code></td><td colspan="2">on <code>issue_comment</code> (<code>/approve</code>, <code>/reject</code>)</td></tr>
+<tr><td><code>webhook-events.yml</code></td><td colspan="2">on <code>repository_dispatch</code></td></tr>
+</table>
+
+<h2>4. Code map</h2>
+<table>
+<tr><th>File</th><th>Responsibility</th></tr>
+<tr><td><code>engine/run_daily.py</code></td><td>Main cycle: topic → pack → QC → media → publish → enqueue.</td></tr>
+<tr><td><code>engine/run_content.py</code></td><td>3-hourly social posts; also <b>drains the distribution queue</b>.</td></tr>
+<tr><td><code>engine/textgen.py</code></td><td>LLM cascade (Mistral→Groq→Gemini→…) + JSON truncation repair.</td></tr>
+<tr><td><code>engine/generate_pack.py</code></td><td>Pack schema, prompt, FAQ guarantee, markdown render.</td></tr>
+<tr><td><code>engine/qc.py</code></td><td><b>Quality gate</b> + idle-run guard. Blocks bad packs.</td></tr>
+<tr><td><code>engine/resilience.py</code></td><td><b>alert / retry / first_ok / safe</b> + circuit breaker.</td></tr>
+<tr><td><code>engine/preflight.py</code></td><td>Fail-fast env + manifest validation before any work.</td></tr>
+<tr><td><code>engine/media.py</code></td><td>Images (CF Flux→Pollinations), video (JSON2Video→ffmpeg).</td></tr>
+<tr><td><code>engine/packaging.py</code>, <code>hosting.py</code></td><td>MD/PDF/DOCX; upload to GitHub Releases.</td></tr>
+<tr><td><code>engine/publish.py</code></td><td>Whop product, cover, FAQ, marketplace submit, enqueue.</td></tr>
+<tr><td><code>engine/whop_client.py</code>, <code>whop_media.py</code></td><td>Whop REST + the 5-step cover-image upload.</td></tr>
+<tr><td><code>engine/marketplace.py</code></td><td>Discover listing + <b>idempotent status polling</b>.</td></tr>
+<tr><td><code>engine/dist_core.py</code></td><td>Durable queue, retry semantics, channel registry, CLI.</td></tr>
+<tr><td><code>engine/dist_channels.py</code></td><td>All 22 channel adapters.</td></tr>
+<tr><td><code>engine/nostr_profile.py</code></td><td>Publishes kind-0 profile with <code>lud16</code> (enables zaps).</td></tr>
+<tr><td><code>workers/src/index.ts</code></td><td>Worker: dashboard, APIs, <code>/p</code> pages, cron, Ko-fi webhook.</td></tr>
+<tr><td><code>appsscript/youtube-bridge.gs</code></td><td>YouTube upload + Blogger email, via Google Apps Script.</td></tr>
+</table>
+
+<h2>5. Distribution mesh — 22 channels</h2>
+<p><b>Only Whop can take money.</b> Everything else is a pointer or a
+reputation surface. Under sanctions, <b>Nostr zaps are the real rail</b>.</p>
+<table>
+<tr><th>Channel</th><th>Status</th><th>Secrets</th></tr>
+<tr><td>nostr</td><td class="ok">LIVE — money channel</td><td><code>NOSTR_NSEC</code>, <code>LIGHTNING_ADDRESS</code></td></tr>
+<tr><td>devto</td><td class="ok">LIVE</td><td><code>DEVTO_API_KEY</code></td></tr>
+<tr><td>bluesky</td><td class="ok">LIVE</td><td><code>BSKY_HANDLE</code>, <code>BSKY_APP_PASSWORD</code></td></tr>
+<tr><td>mastodon</td><td class="ok">LIVE</td><td><code>MASTODON_ACCESS_TOKEN</code> (instance-bound)</td></tr>
+<tr><td>discord</td><td class="ok">LIVE</td><td><code>DISCORD_PROMO_WEBHOOKS</code></td></tr>
+<tr><td>webflow</td><td class="ok">LIVE</td><td><code>WEBFLOW_TOKEN</code> (needs <b>Site</b> token, cms:read+write)</td></tr>
+<tr><td>systemeio</td><td class="ok">LIVE (tags only)</td><td><code>SYSTEMEIO_API_KEY</code></td></tr>
+<tr><td>filepost</td><td class="ok">LIVE</td><td><code>FILEPOST_API_KEY</code></td></tr>
+<tr><td>huggingface</td><td class="ok">LIVE</td><td><code>HF_TOKEN</code></td></tr>
+<tr><td>itch</td><td class="ok">LIVE (butler)</td><td><code>ITCH_API_KEY</code>, <code>ITCH_TARGET</code></td></tr>
+<tr><td>buffer → X/LinkedIn/Pinterest</td><td class="ok">LIVE</td><td><code>BUFFER_ACCESS_TOKEN</code>, <code>BUFFER_CHANNEL_IDS</code></td></tr>
+<tr><td>youtube</td><td class="ok">LIVE (Apps Script)</td><td><code>YOUTUBE_BRIDGE_URL</code>, <code>YOUTUBE_BRIDGE_SECRET</code></td></tr>
+<tr><td>tumblr</td><td class="ok">LIVE</td><td>4× <code>TUMBLR_*</code> (blog = <code>roblox-updates</code>)</td></tr>
+<tr><td>archive</td><td class="ok">LIVE</td><td><code>IA_ACCESS_KEY</code>, <code>IA_SECRET_KEY</code></td></tr>
+<tr><td>zenodo</td><td class="ok">LIVE (draft)</td><td><code>ZENODO_TOKEN</code>; publish is <b>irreversible</b></td></tr>
+<tr><td>indexnow</td><td class="ok">LIVE</td><td><code>INDEXNOW_KEY</code></td></tr>
+<tr><td>blogger</td><td class="warn">needs BLOGGER_EMAIL in Script Props</td><td>reuses YouTube bridge</td></tr>
+<tr><td>telegram, hashnode, gumroad</td><td class="warn">awaiting keys</td><td>hashnode API is now <b>paid</b></td></tr>
+<tr><td>fetchapp, sellix</td><td class="bad">blocked externally</td><td>API 500s / DNS unreachable</td></tr>
+</table>
+
+<h2>6. Credentials</h2>
+<div class="card danger"><b>Credential values are deliberately NOT in this file.</b>
+An earlier draft embedded them and GitHub's push protection rejected the commit —
+correctly. Below is the authoritative <i>inventory</i>: every secret the pipeline
+needs, what it is for, and the non-obvious gotchas. Values live in GitHub Actions
+secrets and Cloudflare Worker secrets.
+<br><br><b>All of these have been exposed in chat and should be rotated.</b></div>
+<pre># Values are NOT stored in this repo — GitHub secret scanning blocks that,
+# and rightly so. Read them from GitHub Actions secrets, Worker secrets,
+# or ask the operator. This is the authoritative LIST of what must exist.
+
+# --- core platform
+WHOP_API_KEY            company key (REST v1/v2)
+WHOP_APP_API_KEY        app key — required for media upload + product update
+WHOP_APP_ID             app_aJFKUT7MnR5730
+WHOP_COMPANY_ID         biz_A79oVYva4QTT8Z
+GH_TOKEN                PAT, repo scope (expires 2026-10-01)
+CF_API_TOKEN            account-owned cfat_… token
+CF_ACCOUNT_ID           0c6059d950fad268faa25cbb6d21ef77
+
+# --- money rail (the only one that works under sanctions)
+NOSTR_NSEC              nsec1… private key (pubkey d4d7c4a6…ecc37e45)
+LIGHTNING_ADDRESS       SharkSkin@coinos.io
+BOLT12_OFFER            lno1… reusable offer
+
+# --- distribution
+DEVTO_API_KEY           BSKY_HANDLE / BSKY_APP_PASSWORD
+MASTODON_INSTANCE / MASTODON_ACCESS_TOKEN        (token is instance-bound)
+DISCORD_PROMO_WEBHOOKS  DISCORD_ALERT_WEBHOOK
+WEBFLOW_TOKEN           must be a SITE token with cms:read+cms:write
+WEBFLOW_COLLECTION_ID   6a9329e5d333ba445a5f158e  (site 6a93284914fb1d22303a116c)
+SYSTEMEIO_API_KEY       FILEPOST_API_KEY          HF_TOKEN (user SharkSkin)
+ITCH_API_KEY            ITCH_TARGET = simalidudu-boop/ai-skills:downloads
+BUFFER_ACCESS_TOKEN     BUFFER_ORG_ID  BUFFER_CHANNEL_IDS (x, linkedin, pinterest)
+BUFFER_PINTEREST_BOARD  required — Buffer's API does not expose board ids
+TUMBLR_CONSUMER_KEY / _SECRET / TUMBLR_TOKEN / _TOKEN_SECRET
+TUMBLR_BLOG_URL         roblox-updates.tumblr.com   (NOT affiliatemonk)
+IA_ACCESS_KEY / IA_SECRET_KEY        ZENODO_TOKEN     INDEXNOW_KEY
+TELEGRAM_BOT_TOKEN / TELEGRAM_CHANNEL_ID             GUMROAD_ACCESS_TOKEN
+
+# --- media + bridges
+JSON2VIDEO_API_KEY      primary renderer (removes the ffmpeg dependency)
+SHOTSTACK_KEY           reserve, unused
+YOUTUBE_BRIDGE_URL      Apps Script /exec  (no Google Cloud project needed)
+YOUTUBE_BRIDGE_SECRET   NOTE: the stored value ends in "/edit?" — that is part of it
+YOUTUBE_CHANNEL_ID      UChT6JgRbKyEY2r_Umyi2cxQ
+BLOGGER_EMAIL           set in Apps Script Script Properties, sends via GmailApp
+
+# --- inbound
+KOFI_VERIFICATION_TOKEN Ko-fi webhook -> /api/kofi  (inbound only, cannot list products)
+
+# --- LLM cascade (order matters)
+MISTRAL_API_KEY -> GROQ_API_KEY -> GEMINI_API_KEY -> XAI_API_KEY -> COHERE_API_KEY</pre>
+
+<div class="card warn" style="border-color:#5c4a2b;background:#1c1810">
+<b>Where to actually get the values</b>
+<ul>
+<li><b>GitHub Actions secrets</b> — Settings → Secrets and variables → Actions.
+The workflows already export every name above.</li>
+<li><b>Worker secrets</b> — <code>npx wrangler@4.86.0 secret list</code>
+(<code>KOFI_VERIFICATION_TOKEN</code>, <code>DISCORD_ALERT_WEBHOOK</code>,
+<code>INDEXNOW_KEY</code>, <code>LIGHTNING_ADDRESS</code>).</li>
+<li>Anything missing: ask the operator. Do not commit values back into the repo —
+push protection will reject it.</li>
+</ul>
+</div>
+
+<h2>7. Traps — do not relearn these the hard way</h2>
+<table>
+<tr><th>Trap</th><th>Reality</th></tr>
+<tr><td>Whop cover images</td><td>5 steps: <code>mediaDirectUpload</code>(record=<b>access_pass</b>) → S3 PUT → <code>mediaAnalyzeAttachment</code>(mediaType=<b>image</b>, lowercase) → <b><code>attachment(id)</code> query → <code>file_…</code> id</b> → <code>updateAccessPass</code>. The blob id is NOT the attachment id.</td></tr>
+<tr><td>Whop <code>marketplace_status</code></td><td><b>Not returned by GET.</b> Only the publish response has it. Re-POST <code>/publish</code> (idempotent) to read current state.</td></tr>
+<tr><td>Whop FAQs</td><td>No write API anywhere (0 hits in the 3MB OpenAPI spec). FAQs are an <b>experience</b> (app), or manual.</td></tr>
+<tr><td>Whop app permissions</td><td>Frozen at <b>install time</b>. Adding a permission later does nothing — the app must be re-installed.</td></tr>
+<tr><td>Whop CDN images</td><td><code>img-v2-prod.whop.com</code> returns <b>403 to third parties</b>. Never syndicate those URLs — use GitHub Release copies (<code>release_images</code>).</td></tr>
+<tr><td>Cloudflare KV</td><td>Free tier = <b>1,000 writes/day</b>. Only write when data actually changed; an idle dashboard tab once burned 90% of quota.</td></tr>
+<tr><td>wrangler</td><td>Latest needs Node ≥22; this box has v20. Always <code>npx --yes wrangler@4.86.0</code>.</td></tr>
+<tr><td>Buffer</td><td><code>channelId</code> is <b>singular</b>; <code>assets</code> is <code>{image:{url}}</code> not <code>{type,source}</code>; <code>channels</code> query needs <code>input:{organizationId}</code>. Pinterest needs a board id.</td></tr>
+<tr><td>Sell.app</td><td>Field is <code>deliverables_type</code>, not <code>type</code>. Create returns 201 but does <b>not persist</b> — channel removed.</td></tr>
+<tr><td>Hugging Face</td><td><code>/upload/</code> endpoint is <b>retired (410)</b>. Use NDJSON <code>/commit/</code>.</td></tr>
+<tr><td>Hashnode</td><td>Free GraphQL API <b>retired 2026-05-13</b> — requires Pro.</td></tr>
+<tr><td>itch.io</td><td>No create-page API (405/404 everywhere). Page made by hand once; <b>butler</b> pushes builds.</td></tr>
+<tr><td>Reddit</td><td>API closed (Responsible Builder Policy); commercial tier ~$12k/yr. <b>Do not automate.</b></td></tr>
+<tr><td>Etsy</td><td><b>Banned AI prompt bundles</b> (Jul 2024). Do not build.</td></tr>
+<tr><td>Nostr keys</td><td>The supplied <code>npub</code> and <code>nsec</code> are <b>different accounts</b>. We post with the nsec.</td></tr>
+<tr><td><code>actions/cache</code> on <code>state/</code></td><td>Clobbered the git-tracked manifest. <b>Never reintroduce.</b></td></tr>
+</table>
+
+<h2>8. Operating it</h2>
+<pre># distribution
+cd engine
+python3 dist_core.py status        # queue + which channels are armed
+python3 dist_core.py drain 10
+python3 dist_core.py retry-failed
+
+# nostr profile (after changing the lightning address)
+python3 nostr_profile.py
+
+# local dry run (never posts)
+MOCK=1 DRY_RUN=1 python3 run_daily.py
+
+# worker
+cd workers && npx --yes wrangler@4.86.0 deploy</pre>
+<p><b>Safety switches:</b> <code>DIST_POSTING_MODE=DRAFT</code> (default — queues,
+never posts), <code>DIST_MODE_&lt;CHANNEL&gt;=LIVE</code> per channel,
+<code>QC_STRICT=0</code> to disable the quality gate (not advised), plus
+kill-switch / dry-run toggles in CF KV.</p>
+
+<h2>9. Current state &amp; what to do next</h2>
+<div class="card">
+<b>Reality check:</b> 2 live products ($0 and $11), <b>$0 revenue</b>,
+both still <code>pending_review</code> on Whop Discover, email list empty.
+The machine is built; it has not yet sold anything.
+</div>
+<ol>
+<li><b>Verify Whop can pay out to Iran.</b> One support ticket. Unblocks or kills the paid strategy.</li>
+<li><b>Prove a zap lands</b> — send 10 sats to <code>SharkSkin@coinos.io</code> and confirm receipt.</li>
+<li><b>Ship a bundle</b> ($39–79) — zero production cost, fixes the missing middle of the price ladder.</li>
+<li><b>Rotate every credential above.</b></li>
+<li>Manual directory submissions: Openfuture.ai, AlternativeTo, SourceForge, Future Tools.</li>
+</ol>
+
+<h2>10. House rules for whoever works on this next</h2>
+<ul>
+<li><b>Verify writes by reading them back.</b> Four APIs here return false 200s.</li>
+<li><b>Never claim a credential is dead</b> without testing it against a known-good signal first — that mistake was made three times.</li>
+<li><b>Test failure paths, not just happy paths.</b> The circuit breaker looked fine and never tripped until asserted on.</li>
+<li><b>Don't automate hostile platforms</b> (Reddit, X direct, LinkedIn direct). Buffer is the sanctioned proxy.</li>
+<li><b>Prefer deterministic checks over LLM judgement</b> for QC.</li>
+<li><b>Alerts only on exhaustion</b>, deduplicated. Noise trains people to ignore alarms.</li>
+</ul>
+
+<p class="mut" style="margin-top:36px">Docs worth reading next:
+<span class="pill">docs/RESILIENCE.md</span>
+<span class="pill">docs/DISTRIBUTION_SETUP.md</span>
+<span class="pill">docs/MONETIZATION.md</span>
+<span class="pill">docs/MARKETPLACE.md</span>
+<span class="pill">docs/DISTRIBUTION_V2.md</span></p>
+
+</div></body></html>
