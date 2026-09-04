@@ -130,6 +130,15 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
     # Fan out to every configured distribution channel. Enqueue only — no
     # network here; the bounded worker drains it. A dead channel can never
     # stall or fail a publish run.
+    # ONLY distribute what is actually buyable. Paid assets sit `hidden` on
+    # Whop until /approve, so enqueuing them broadcasts a dead link to every
+    # channel. Observed: 4 unapproved products queued 68 posts between them.
+    # approve() re-enqueues once the product goes visible.
+    if price != 0.0:
+        print(f"[dist] {slug}: paid asset pending approval — not enqueued yet")
+        return _finish_paid(result, pack, slug, price, image_urls,
+                            file_urls, page_url, product_id)
+
     try:
         import dist_core
         import dist_channels  # noqa: F401  (registers the adapters)
@@ -182,6 +191,39 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
     return result
 
 
+def _finish_paid(result, pack, slug, price, image_urls, file_urls,
+                 page_url, product_id):
+    """Paid assets: open the review issue, skip distribution until approved."""
+    issue = review.open_review_issue(pack, slug, price, image_urls, file_urls,
+                                     page_url, product_id)
+    result["review_issue"] = issue
+    result["status"] = "pending_approval"
+    return result
+
+
+def enqueue_asset(slug: str, pack: dict, price: float, page_url: str,
+                  file_urls: list, image_urls: list, description: str) -> None:
+    """Queue one asset for distribution. Shared by publish and approve."""
+    try:
+        import dist_core
+        import dist_channels  # noqa: F401
+        dist_core.enqueue({
+            "slug": slug,
+            "title": pack.get("title"),
+            "subtitle": pack.get("subtitle"),
+            "description": description,
+            "keywords": pack.get("keywords") or [],
+            "faq": pack.get("faq") or [],
+            "price": price,
+            "page_url": page_url or "",
+            "deliverable_url": (file_urls[0]["url"] if file_urls else ""),
+            "gallery_images": image_urls or [],
+            "release_images": image_urls or [],
+        })
+    except Exception as e:  # noqa: BLE001
+        print(f"[dist] enqueue skipped: {e}")
+
+
 def approve(product_id: str, price: float, metadata: dict | None = None) -> dict:
     """Called by approve_from_issue.py on /approve."""
     plan = whop.create_plan(product_id=product_id, initial_price=price)
@@ -189,6 +231,15 @@ def approve(product_id: str, price: float, metadata: dict | None = None) -> dict
     # Now that it has a visible plan and is visible, it qualifies for the
     # marketplace — submit it so approved paid products are discoverable too.
     listing = marketplace.publish(product_id, COMPANY_ID)
+
+    # NOW distribute: the product is visible and purchasable, so the links we
+    # broadcast actually resolve. publish_asset() deliberately skipped this.
+    md = (metadata or {})
+    if md.get("slug"):
+        enqueue_asset(md["slug"], md.get("pack") or {"title": md.get("title")},
+                      price, md.get("page_url", ""), md.get("file_urls") or [],
+                      md.get("image_urls") or [], md.get("description", ""))
+
     return {"plan_id": plan.get("id"), "update": upd,
             "marketplace_status": listing.get("marketplace_status"),
             "marketplace_missing": listing.get("missing")}

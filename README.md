@@ -72,9 +72,15 @@ Free assets publish automatically; paid assets open a GitHub Issue and wait for
 22 registered channels. **Only Whop can take money** — everything else is a
 pointer or a reputation surface.
 
-**Live:** Nostr, dev.to, Bluesky, Mastodon, Discord, Webflow, Systeme.io,
+**Distribution is LIVE** (`DIST_POSTING_MODE=LIVE`).
+
+**Working:** Nostr, dev.to, Bluesky, Mastodon, Discord, Webflow, Systeme.io,
 FilePost, Hugging Face, itch.io, Buffer → X/LinkedIn/Pinterest, YouTube,
 Tumblr, Archive.org, Zenodo, IndexNow.
+
+Only **free, visible** products are distributed. Paid assets stay `hidden`
+until `/approve`, and are enqueued at that point — broadcasting a hidden
+product just advertises a dead link.
 
 **Awaiting keys:** Telegram, Gumroad, Blogger.
 **Blocked externally:** FetchApp (API down), Sellix (unreachable), Hashnode
@@ -129,8 +135,34 @@ See [`docs/MONETIZATION.md`](docs/MONETIZATION.md).
 
 ## Current state
 
-2 live products ($0 and $11), **$0 revenue**, both still `pending_review` on
-Whop Discover. The machine is built and running; it has not yet sold anything.
+**Verified working 2026-09-04.** Three consecutive real runs each produced
+**3/3 assets at 100/100 QC** — generated, quality-gated, published to Whop with
+cover images, submitted to Discover, and queued for distribution with no human
+involvement.
 
-Next: verify Whop payouts to Iran, prove a zap lands, ship a bundle, rotate
-credentials.
+| | |
+|---|---|
+| Products on Whop | 8 (4 live/free, 4 paid awaiting `/approve`) |
+| Revenue | **$0 — nothing has sold yet** |
+| Discover | 2 `pending_review` (Whop's manual queue) |
+| Distribution | **LIVE**, 34 jobs queued |
+| Email list | empty — no capture form exists |
+
+**Next:**
+1. Verify Whop can pay out to Iran (one support ticket — unblocks or kills the paid strategy)
+2. Prove a zap lands — send 10 sats to `SharkSkin@coinos.io`
+3. Approve or archive the 4 pending paid products
+4. **Rotate every credential** — all were exposed in chat
+5. Prune the store; several products were generated during debugging
+
+## Recent fixes worth knowing
+
+| Fix | Why it mattered |
+|---|---|
+| JSON truncation repair + 8k tokens | Packs were dying mid-generation; runs shipped **0/3 assets while reporting success** |
+| QC gate + idle-run guard | Blocks thin/leaked packs; fails the run loudly instead of a green tick on an idle factory |
+| `$0` plan **before** marketplace submit | Ordering bug silently kept **every free asset off Discover** |
+| `external_identifier` removed | Whop now 400s on it for every value; omitting it works |
+| `ensure_shape()` | A missing `skills` key `KeyError`d a pack that had already scored 100/100 |
+| Prompt top-up | Models return 3 prompts when asked for 10 — now tops up instead of failing QC |
+| Paid assets not enqueued | 4 hidden products had queued **68 posts** pointing at dead links |

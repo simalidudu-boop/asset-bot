@@ -122,7 +122,8 @@ already ran.</p>
 </table>
 
 <h2>5. Distribution mesh — 22 channels</h2>
-<p><b>Only Whop can take money.</b> Everything else is a pointer or a
+<p><b>Status: <span class="ok">LIVE</span></b> (<code>DIST_POSTING_MODE=LIVE</code>).
+<b>Only Whop can take money.</b> Everything else is a pointer or a
 reputation surface. Under sanctions, <b>Nostr zaps are the real rail</b>.</p>
 <table>
 <tr><th>Channel</th><th>Status</th><th>Secrets</th></tr>
@@ -232,6 +233,11 @@ push protection will reject it.</li>
 <tr><td>Reddit</td><td>API closed (Responsible Builder Policy); commercial tier ~$12k/yr. <b>Do not automate.</b></td></tr>
 <tr><td>Etsy</td><td><b>Banned AI prompt bundles</b> (Jul 2024). Do not build.</td></tr>
 <tr><td>Nostr keys</td><td>The supplied <code>npub</code> and <code>nsec</code> are <b>different accounts</b>. We post with the nsec.</td></tr>
+<tr><td>Whop <code>external_identifier</code></td><td><b>No longer accepted on create</b> — 400s for every value tried (plain, timestamped, alphanumeric); omitting it succeeds. The slug lives in <code>metadata</code> instead.</td></tr>
+<tr><td>Free products + Discover</td><td>The <b>$0 plan must exist BEFORE</b> <code>marketplace.publish()</code>. Publishing first yields "missing: a visible pricing plan" and silently keeps every free asset off Discover. Ordering bug, fixed.</td></tr>
+<tr><td>Pack <code>skills</code> key</td><td>Optional in practice — the LLM omits it under truncation. Three call sites indexed it directly and a <code>KeyError</code> killed a pack that had already scored 100/100. <code>ensure_shape()</code> now guarantees it.</td></tr>
+<tr><td>Distributing paid assets</td><td>Paid products are <code>hidden</code> until <code>/approve</code>. Enqueuing at publish time broadcasts a dead link — 4 products once queued 68 such posts. Only enqueue when <code>price == 0</code>; <code>approve()</code> enqueues the rest.</td></tr>
+<tr><td>LLM prompt counts</td><td>Models under-deliver (3 prompts when 10 requested). The generator now asks once for the shortfall rather than lowering the QC bar.</td></tr>
 <tr><td><code>actions/cache</code> on <code>state/</code></td><td>Clobbered the git-tracked manifest. <b>Never reintroduce.</b></td></tr>
 </table>
 
@@ -257,16 +263,26 @@ kill-switch / dry-run toggles in CF KV.</p>
 
 <h2>9. Current state &amp; what to do next</h2>
 <div class="card">
-<b>Reality check:</b> 2 live products ($0 and $11), <b>$0 revenue</b>,
-both still <code>pending_review</code> on Whop Discover, email list empty.
-The machine is built; it has not yet sold anything.
+<b>Verified working 2026-09-04.</b> Three consecutive real runs produced
+<b>3/3 assets each, all scoring 100/100 at QC</b>. The factory generates,
+quality-gates, publishes to Whop with cover images, submits to Discover, and
+queues distribution without human involvement.
 </div>
+<table>
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>Products on Whop</td><td>8 (4 live/free, 4 paid awaiting <code>/approve</code>)</td></tr>
+<tr><td>Revenue</td><td class="bad">$0 — nothing has sold yet</td></tr>
+<tr><td>Discover listings</td><td>2 <code>pending_review</code> (Whop's manual queue)</td></tr>
+<tr><td>Distribution</td><td><span class="ok">LIVE</span> — 34 jobs queued for the 2 free assets</td></tr>
+<tr><td>Email list</td><td>empty (no capture form exists yet)</td></tr>
+</table>
 <ol>
 <li><b>Verify Whop can pay out to Iran.</b> One support ticket. Unblocks or kills the paid strategy.</li>
-<li><b>Prove a zap lands</b> — send 10 sats to <code>SharkSkin@coinos.io</code> and confirm receipt.</li>
-<li><b>Ship a bundle</b> ($39–79) — zero production cost, fixes the missing middle of the price ladder.</li>
-<li><b>Rotate every credential above.</b></li>
-<li>Manual directory submissions: Openfuture.ai, AlternativeTo, SourceForge, Future Tools.</li>
+<li><b>Prove a zap lands</b> — send 10 sats to <code>SharkSkin@coinos.io</code>. Plumbing is verified; money movement is not.</li>
+<li><b>Approve or archive the 4 pending paid products</b> — they are hidden and undistributed until you <code>/approve</code> in GitHub Issues.</li>
+<li><b>Rotate every credential.</b> All were exposed in chat.</li>
+<li><b>Prune the store</b> — several products were generated during debugging, not curated.</li>
+<li>Ship a bundle ($39–79); manual directory submissions (Openfuture.ai, AlternativeTo, SourceForge, Future Tools).</li>
 </ol>
 
 <h2>10. House rules for whoever works on this next</h2>
