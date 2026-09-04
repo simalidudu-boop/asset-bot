@@ -69,3 +69,37 @@ python3 dist_core.py status                  # factory 2's own queue
 ```
 
 Schedule: `35 9 * * *`, clear of Factory 1's 06:20 slot.
+
+
+## Status — verified 2026-09-04
+
+First real (non-mock) CI run:
+
+```
+[f2] MOCK=False DRY=False articles=1 payable_programmes=7
+[f2] generated: accept-bitcoin-payments-no-kyc-small-business
+[qc2] PASS score=100/100
+[f2] rendered 9668 chars
+[dist] queued 10 job(s) — drafted (DRAFT mode, nothing posted)
+[f2] done. 1/1 articles.
+```
+
+Isolation confirmed: Factory 1's manifest (11 assets) and queue were untouched,
+and `factory2/state/` is separate.
+
+### Before going LIVE
+
+1. **Sign up for the affiliate programmes** and set `AFFILIATE_IDS`. Until
+   then articles link to the bare URLs and earn nothing — correct behaviour,
+   but it earns $0.
+2. **Consider separate accounts.** Factory 2 currently posts through Factory
+   1's dev.to/Bluesky/Mastodon/Nostr identities. Bitcoin content on an AI
+   prompt-pack account dilutes both. Set the `F2_*` overrides once you have
+   separate handles.
+3. Set `F2_DIST_POSTING_MODE=LIVE`.
+
+### Known limitation
+
+The Lightning address appended to articles is the same one Factory 1 uses, so
+zap revenue is not attributable per factory. Set a distinct
+`LIGHTNING_ADDRESS` in the Factory 2 workflow if you want separate accounting.
