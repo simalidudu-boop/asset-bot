@@ -366,6 +366,80 @@
           "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
         }
       ]
+    },
+    {
+      "slug": "conversion-catalyst-landing-page-copy-pack",
+      "title": "Conversion Catalyst: Landing Page Copy Pack",
+      "topic": "Conversion-optimized landing page copywriting",
+      "kind": "prompt-pack",
+      "free": true,
+      "price": 0.0,
+      "product_id": "prod_tZ3r3q8m8mouT",
+      "status": "live",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/conversion-catalyst-landing-page-copy-pack",
+      "created": "2026-09-05T06:22:06Z",
+      "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-05-28a6bf18956c6831.mp4",
+      "cover_status": "set",
+      "gallery_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/conversion-catalyst-landing-page-copy-pack-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/conversion-catalyst-landing-page-copy-pack-img-2-v2.jpg"
+      ],
+      "marketplace_status": "pending_review",
+      "faq": [
+        {
+          "question": "Who is this prompt pack for?",
+          "answer": "This pack is designed for marketers, copywriters, and business owners who want to create high-converting landing page copy more efficiently. If you need to generate persuasive text for your sales pages, this pack is for you."
+        },
+        {
+          "question": "What kind of results can I expect?",
+          "answer": "You can expect to generate clear, benefit-driven, and conversion-focused copy for all key sections of a landing page. This will help you save time in your copywriting process and create pages that are more likely to turn visitors into leads or customers."
+        },
+        {
+          "question": "Do I need any special software to use these prompts?",
+          "answer": "No, you only need access to an AI language model like ChatGPT, Claude, or similar. The Python code snippets for skills require a Python environment (e.g., Google Colab, local installation) and specific libraries as noted in their explanations."
+        },
+        {
+          "question": "What exactly do I get?",
+          "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
+        }
+      ]
+    },
+    {
+      "slug": "seo-outline-architect-entity-mapping-edition",
+      "title": "SEO Outline Architect: Entity Mapping Edition",
+      "topic": "SEO-structured blog post outlines with entity mapping",
+      "kind": "prompt-pack",
+      "free": false,
+      "price": 11,
+      "product_id": "prod_lY8V0LqQ9dr0x",
+      "status": "pending_approval",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/seo-outline-architect-entity-mapping-edition",
+      "created": "2026-09-05T06:23:17Z",
+      "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-05-61ff6f30ee00883d.mp4",
+      "cover_status": "set",
+      "gallery_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/seo-outline-architect-entity-mapping-edition-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/seo-outline-architect-entity-mapping-edition-img-2-v2.jpg"
+      ],
+      "marketplace_status": null,
+      "faq": [
+        {
+          "question": "What is \"entity mapping\" in SEO?",
+          "answer": "Entity mapping in SEO involves identifying key concepts, people, places, and things (entities) related to your topic. By covering these entities comprehensively, you signal to search engines that your content is authoritative and relevant, improving its chances of ranking."
+        },
+        {
+          "question": "Is this pack suitable for beginners?",
+          "answer": "While the concepts of SEO and entity mapping can be advanced, this pack provides clear, copy-paste prompts designed to guide you. The prompts are structured to help even intermediate users create sophisticated outlines, making it accessible with some basic SEO understanding."
+        },
+        {
+          "question": "What exactly do I get?",
+          "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
+        },
+        {
+          "question": "Do I need a paid AI subscription?",
+          "answer": "No. Every prompt works on the free tiers of ChatGPT, Claude and Gemini."
+        }
+      ]
     }
   ],
   "posts": [
