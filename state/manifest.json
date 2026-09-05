@@ -558,9 +558,9 @@
       "topic": "Data Analysis & Visualization Workflows",
       "kind": "prompt-pack",
       "free": false,
-      "price": 11,
+      "price": 11.0,
       "product_id": "prod_Cw3vVbUJLp3Ip",
-      "status": "pending_approval",
+      "status": "live",
       "page_url": "https://whop.com/the-algorithmic-daemon-concern/data-storyteller-s-toolkit",
       "created": "2026-09-05T13:52:43Z",
       "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-05-dba367918de0581b.mp4",
@@ -569,7 +569,29 @@
         "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/data-storyteller-s-toolkit-img-1-v2.jpg",
         "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/data-storyteller-s-toolkit-img-2-v2.jpg"
       ],
-      "marketplace_status": null,
+      "release_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/data-storyteller-s-toolkit-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/data-storyteller-s-toolkit-img-2-v2.jpg"
+      ],
+      "files": [
+        {
+          "name": "data-storyteller-s-toolkit.pdf",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/data-storyteller-s-toolkit-data-storyteller-s-toolkit.pdf"
+        },
+        {
+          "name": "data-storyteller-s-toolkit.docx",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/data-storyteller-s-toolkit-data-storyteller-s-toolkit.docx"
+        },
+        {
+          "name": "data-storyteller-s-toolkit.zip",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/data-storyteller-s-toolkit-data-storyteller-s-toolkit.zip"
+        },
+        {
+          "name": "pack.html",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/data-storyteller-s-toolkit-pack.html"
+        }
+      ],
+      "marketplace_status": "pending_review",
       "faq": [
         {
           "question": "What kind of data can I use these prompts with?",
