@@ -31,6 +31,15 @@
       "huggingface": "https://huggingface.co/datasets/SharkSkin/battle-tested-regex-validations",
       "created": "2026-09-05T13:23:59Z",
       "status": "live"
+    },
+    {
+      "name": "http-status-ambiguity-guide",
+      "title": "HTTP Status Code Guide for Ambiguous API Scenarios",
+      "rows": 25,
+      "github": "https://github.com/simalidudu-boop/http-status-ambiguity-guide",
+      "huggingface": "https://huggingface.co/datasets/SharkSkin/http-status-ambiguity-guide",
+      "created": "2026-09-05T13:49:44Z",
+      "status": "live"
     }
   ]
 }
