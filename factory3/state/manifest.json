@@ -22,6 +22,15 @@
       "huggingface": "https://huggingface.co/datasets/SharkSkin/model-refusal-phrases",
       "created": "2026-09-04T21:34:23Z",
       "status": "live"
+    },
+    {
+      "name": "battle-tested-regex-validations",
+      "title": "Battle-Tested Regex Validations",
+      "rows": 30,
+      "github": "https://github.com/simalidudu-boop/battle-tested-regex-validations",
+      "huggingface": "https://huggingface.co/datasets/SharkSkin/battle-tested-regex-validations",
+      "created": "2026-09-05T13:23:59Z",
+      "status": "live"
     }
   ]
 }

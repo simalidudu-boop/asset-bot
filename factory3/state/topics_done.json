@@ -1,4 +1,5 @@
 [
   "llm-refusal-phrases",
-  "prompt-injection-test-cases"
+  "prompt-injection-test-cases",
+  "regex-cookbook"
 ]
