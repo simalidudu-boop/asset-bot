@@ -40,6 +40,15 @@
       "huggingface": "https://huggingface.co/datasets/SharkSkin/http-status-ambiguity-guide",
       "created": "2026-09-05T13:49:44Z",
       "status": "live"
+    },
+    {
+      "name": "labelled-cron-expressions",
+      "title": "Labelled Cron Expressions with Human-Readable Descriptions",
+      "rows": 25,
+      "github": "https://github.com/simalidudu-boop/labelled-cron-expressions",
+      "huggingface": "https://huggingface.co/datasets/SharkSkin/labelled-cron-expressions",
+      "created": "2026-09-05T16:53:24Z",
+      "status": "live"
     }
   ]
 }
