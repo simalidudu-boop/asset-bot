@@ -185,27 +185,36 @@ def broadcast_chat(text: str, company_id: str | None = None) -> dict:
 
 
 # ------------------------------------------------------------------ DMs ---
+def dm_channel_for(user_id: str) -> str:
+    """Get (or create) the DM channel with one user. Returns "" on failure.
+
+    The parameter is **`with_user_ids`**, not `user_ids`. That is not
+    documented anywhere and is not in the OpenAPI spec — every wrong name
+    echoes back "Missing required parameter: <your name>", which makes the
+    error useless. Sending an EMPTY body is what reveals the true name.
+    """
+    try:
+        r = _app_request("POST", "/dm_channels",
+                         {"with_user_ids": [user_id]})
+        return r.get("id", "")
+    except Exception as e:  # noqa: BLE001
+        print(f"[reach] dm channel failed for {user_id}: {str(e)[:120]}")
+        return ""
+
+
 def dm_members(text: str, asset_slug: str,
                company_id: str | None = None) -> dict:
     """DM members about ONE asset, at most once each, ever.
 
-    Off by default. Unsolicited repeat DMs are how a Whop account gets
-    reported, and we would lose the only storefront we have.
+    Verified working 2026-09-05 (channel feed_1CekKpAnc…, message post_…).
+
+    Deliberately conservative. This is the only channel here that lands in
+    someone's inbox uninvited, and a report against the account would cost us
+    the storefront. So: opt-in flag, one message per member per asset ever,
+    admins excluded, hard per-run cap.
     """
     if os.environ.get("WHOP_DM_ENABLED", "0") != "1":
         return {"skipped": "WHOP_DM_ENABLED != 1"}
-
-    # DMs need a DM CHANNEL first, and listing/creating one requires the
-    # `dms:read` permission. `dms:message:manage` alone is not sufficient —
-    # verified 2026-09-05: /dm_channels returns
-    # "missing all required permissions: dms:read" on both keys.
-    # Without it there is no channel_id to send to, so bail cleanly.
-    try:
-        _app_request("GET", "/dm_channels")
-    except Exception as e:  # noqa: BLE001
-        if "dms:read" in str(e):
-            return {"skipped": "needs dms:read on the app (then re-install)"}
-        return {"skipped": f"dm_channels unavailable: {str(e)[:100]}"}
 
     led = _ledger()
     done = set(led.get(asset_slug, []))
@@ -216,19 +225,34 @@ def dm_members(text: str, asset_slug: str,
 
     sent, errs = 0, []
     for m in targets[:MAX_DMS]:
+        cid = dm_channel_for(m["user_id"])
+        if not cid:
+            errs.append(f"{m['user_id']}: no channel")
+            continue
         try:
-            # A DM is a message to a channel scoped to that user.
-            whop._request("POST", "/messages",
-                          {"user_id": m["user_id"], "content": text[:2000]})
+            _app_request("POST", "/messages",
+                         {"channel_id": cid, "content": text[:2000]})
             done.add(m["user_id"])
             sent += 1
         except Exception as e:  # noqa: BLE001
-            errs.append(f"{m['user_id']}: {str(e)[:120]}")
+            msg = str(e)
+            if "URLs is not allowed" in msg:
+                import re as _re
+                plain = _re.sub(r"https?://\S+", "", text).strip()
+                try:
+                    _app_request("POST", "/messages",
+                                 {"channel_id": cid, "content": plain[:2000]})
+                    done.add(m["user_id"])
+                    sent += 1
+                    continue
+                except Exception as e2:  # noqa: BLE001
+                    msg = str(e2)
+            errs.append(f"{m['user_id']}: {msg[:110]}")
 
     led[asset_slug] = sorted(done)
     _save(led)
     print(f"[reach] DM: {sent} sent, {len(errs)} failed, "
-          f"{len(targets) - sent} left for next run")
+          f"{max(0, len(targets) - sent - len(errs))} left for next run")
     for e in errs[:3]:
         print(f"[reach] dm failed {e}")
     return {"sent": sent, "errors": errs}
