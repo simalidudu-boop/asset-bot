@@ -236,9 +236,102 @@ def dm_members(text: str, asset_slug: str,
 
 def announce(title: str, url: str, blurb: str = "",
              asset_slug: str = "") -> dict:
-    """One call from publish.py: chat broadcast + optional DMs."""
+    """One call from publish.py — every Whop-native surface we can reach.
+
+    Ordered by value: notifications reach members inside the app and have no
+    URL restriction; chat is opt-in but link-limited; DMs are gated behind a
+    permission we do not have and are off by default anyway.
+    """
     msg = f"**{title}**\n\n{blurb}\n\n{url}".strip()
-    out = {"chat": broadcast_chat(msg)}
+    out = {
+        "notification": notify(title, f"{blurb}\n\n{url}".strip()),
+        "chat": broadcast_chat(msg),
+    }
     if asset_slug:
         out["dm"] = dm_members(msg, asset_slug)
     return out
+
+
+# ---------------------------------------------------- notifications ---
+def notify(title: str, content: str, subtitle: str = "",
+           experience_id: str = "", company_id: str | None = None) -> dict:
+    """Push a notification to members. Verified 2026-09-05: 200 {"success":true}.
+
+    This is the highest-value permission that was granted, because it reaches
+    members in the Whop app itself rather than a forum nobody visits. Unlike
+    chat it has no URL restriction, and unlike DMs it needs no channel.
+
+    Scope: `experience_id` targets an experience's users; otherwise it goes to
+    the account's team. Keep it to genuine releases — a notification is more
+    intrusive than a forum post, and the fastest way to get muted.
+    """
+    body = {"title": title[:120], "content": content[:500]}
+    if subtitle:
+        body["subtitle"] = subtitle[:120]
+    if experience_id:
+        body["experience_id"] = experience_id
+    else:
+        body["account_id"] = company_id or COMPANY
+    try:
+        r = _app_request("POST", "/notifications", body)
+        ok = bool(r.get("success"))
+        print(f"[reach] notification {'sent' if ok else 'rejected'}: {title[:50]}")
+        return {"ok": ok}
+    except Exception as e:  # noqa: BLE001
+        print(f"[reach] notification failed: {str(e)[:140]}")
+        return {"ok": False, "error": str(e)[:200]}
+
+
+# ------------------------------------------------------- promo codes ---
+def create_promo(code: str, percent_off: int = 30, product_id: str = "",
+                 months: int = 1, company_id: str | None = None) -> dict:
+    """Create a discount code. Verified live (promo_eNslWWwdyOam).
+
+    A launch discount is the one conversion lever we can pull without an
+    audience — it makes an announcement worth acting on now rather than later.
+
+    Required by the API: account_id, code, promo_type, amount_off,
+    base_currency, new_users_only, promo_duration_months.
+    """
+    body = {
+        "account_id": company_id or COMPANY,
+        "code": code[:40],
+        "promo_type": "percentage",
+        "amount_off": percent_off,
+        "base_currency": "usd",
+        "new_users_only": False,
+        "promo_duration_months": months,
+        "unlimited_stock": True,
+        "one_per_customer": True,
+    }
+    if product_id:
+        body["product_id"] = product_id
+    try:
+        r = _app_request("POST", "/promo_codes", body)
+        if r.get("id"):
+            print(f"[reach] promo {r.get('code')} created ({percent_off}% off)")
+            return {"ok": True, "id": r["id"], "code": r.get("code")}
+        return {"ok": False, "error": str(r)[:200]}
+    except Exception as e:  # noqa: BLE001
+        # a duplicate code is not a failure worth alerting on
+        if "already" in str(e).lower() or "taken" in str(e).lower():
+            return {"ok": True, "code": code, "note": "already exists"}
+        print(f"[reach] promo failed: {str(e)[:140]}")
+        return {"ok": False, "error": str(e)[:200]}
+
+
+# ------------------------------------------------------------- stats ---
+def revenue_stats(company_id: str | None = None) -> dict:
+    """Read Whop's own revenue metrics — the honest scoreboard.
+
+    Our dashboard counts assets and posts, which measure activity, not
+    success. These measure whether any of it worked.
+    """
+    try:
+        r = _app_request("GET", "/stats") or {}
+        keep = {"account_balance", "annual_recurring_revenue",
+                "average_revenue_per_user", "affiliate_fees"}
+        return {s.get("key"): s.get("value")
+                for s in (r.get("data") or []) if s.get("key") in keep}
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e)[:150]}
