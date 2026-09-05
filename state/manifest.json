@@ -447,9 +447,9 @@
       "topic": "E-commerce product descriptions and advertising copy",
       "kind": "prompt-pack",
       "free": false,
-      "price": 11,
+      "price": 11.0,
       "product_id": "prod_lOBPQ3a0c9wjQ",
-      "status": "pending_approval",
+      "status": "live",
       "page_url": "https://whop.com/the-algorithmic-daemon-concern/e-commerce-copy-catalyst",
       "created": "2026-09-05T13:22:13Z",
       "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-05-edd04cf73b7cabd0.mp4",
@@ -458,7 +458,29 @@
         "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/e-commerce-copy-catalyst-img-1-v2.jpg",
         "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/e-commerce-copy-catalyst-img-2-v2.jpg"
       ],
-      "marketplace_status": null,
+      "release_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/e-commerce-copy-catalyst-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/e-commerce-copy-catalyst-img-2-v2.jpg"
+      ],
+      "files": [
+        {
+          "name": "e-commerce-copy-catalyst.pdf",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/e-commerce-copy-catalyst-e-commerce-copy-catalyst.pdf"
+        },
+        {
+          "name": "e-commerce-copy-catalyst.docx",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/e-commerce-copy-catalyst-e-commerce-copy-catalyst.docx"
+        },
+        {
+          "name": "e-commerce-copy-catalyst.zip",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/e-commerce-copy-catalyst-e-commerce-copy-catalyst.zip"
+        },
+        {
+          "name": "pack.html",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/e-commerce-copy-catalyst-pack.html"
+        }
+      ],
+      "marketplace_status": "pending_review",
       "faq": [
         {
           "question": "How do I use these prompts effectively?",
