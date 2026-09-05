@@ -276,13 +276,12 @@ def ch_itch(a: dict) -> dict:
 
     target = env("ITCH_TARGET")
     if not target:
-        return result(False, permanent=True,
-                      error="ITCH_TARGET not set (user/game:channel). itch has "
-                            "no create-page API — make the page once by hand.")
+        return result(False, permanent=True, skipped=True,
+                      error="ITCH_TARGET not set — page must be created by hand once")
     butler = shutil.which("butler") or env("BUTLER_PATH")
     if not butler:
-        return result(False, permanent=True,
-                      error="butler CLI not installed; itch has no HTTP upload API")
+        return result(False, permanent=True, skipped=True,
+                      error="butler CLI not installed on this runner")
 
     title, blurb, url, _ = _asset_bits(a)
     src = a.get("deliverable_url") or ""
@@ -818,7 +817,8 @@ def ch_youtube(a: dict) -> dict:
     title, blurb, url, _ = _asset_bits(a)
     video = (a.get("video_url") or "").strip()
     if not video:
-        return result(False, error="no video_url for this asset", permanent=True)
+        return result(False, error="asset has no video", permanent=True,
+                      skipped=True)
 
     payload = {
         "secret": env("YOUTUBE_BRIDGE_SECRET"),

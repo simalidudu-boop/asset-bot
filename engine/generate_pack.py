@@ -204,7 +204,19 @@ def ensure_shape(pack: dict) -> dict:
     pack.setdefault("skills", [])
     pack.setdefault("prompts", [])
     pack.setdefault("keywords", [])
-    pack.setdefault("upsell", {"pro_teaser": "", "custom_work_cta": ""})
+    # Every free lead magnet must carry BOTH upsells — a premium version and
+    # custom work. The LLM omits them often enough that defaults are required.
+    up = pack.get("upsell") or {}
+    if not isinstance(up, dict):
+        up = {}
+    up.setdefault("pro_teaser",
+                  "The Pro edition triples the prompt count, adds worked "
+                  "examples for every prompt, and includes the fill-in-the-blank "
+                  "templates.")
+    up.setdefault("custom_work_cta",
+                  "Want this built around YOUR niche and brand voice? "
+                  "Custom packs are made to order.")
+    pack["upsell"] = up
     return pack
 
 

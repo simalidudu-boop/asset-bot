@@ -67,7 +67,8 @@ def update_product(product_id: str, visibility: str = "visible") -> dict:
 
 def publish_asset(pack: dict, slug: str, file_urls: list[dict],
                   image_urls: list[str], description: str,
-                  local_files: list | None = None) -> dict:
+                  local_files: list | None = None,
+                  video_url: str = "") -> dict:
     """Create product; free -> $0 plan live now, paid -> review Issue.
 
     file_urls: [{"name", "url"}] from hosting.py (GitHub Releases).
@@ -193,6 +194,9 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
             "price": price,
             "page_url": result.get("page_url") or "",
             "deliverable_url": (file_urls[0]["url"] if file_urls else ""),
+            # Videos ARE generated (json2video) but were never passed here,
+            # so ch_youtube always saw "no video_url" and marked itself failed.
+            "video_url": video_url or "",
             "gallery_images": image_urls or [],
             # public (non-Whop) copies — third parties cannot fetch Whop CDN
             "release_images": image_urls or [],
@@ -258,6 +262,9 @@ def enqueue_asset(slug: str, pack: dict, price: float, page_url: str,
             "price": price,
             "page_url": page_url or "",
             "deliverable_url": (file_urls[0]["url"] if file_urls else ""),
+            # Videos ARE generated (json2video) but were never passed here,
+            # so ch_youtube always saw "no video_url" and marked itself failed.
+            "video_url": video_url or "",
             "gallery_images": image_urls or [],
             "release_images": image_urls or [],
         })

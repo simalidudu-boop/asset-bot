@@ -30,8 +30,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Factory 2 owns its OWN state. Pointing at the repo-root state/ would
-# make two factories fight over one queue and manifest.
+# Factory owns its own state.
 STATE = Path(__file__).resolve().parent / "state"
 QUEUE = STATE / "dist_queue.jsonl"
 
@@ -53,11 +52,17 @@ def _ts() -> float:
 
 # ---------------------------------------------------------------- result ---
 def result(ok: bool, remote_id: str = "", remote_url: str = "",
-           error: str = "", permanent: bool = False) -> dict:
-    """Uniform adapter return value."""
+           error: str = "", permanent: bool = False,
+           skipped: bool = False) -> dict:
+    """Uniform adapter return value.
+
+    `skipped` means "this channel does not apply to this asset" — e.g. a
+    YouTube job for an asset with no video. That is NOT a failure, and
+    counting it as one buried three real problems in the dashboard.
+    """
     return {"ok": bool(ok), "remote_id": remote_id or "",
             "remote_url": remote_url or "", "error": (error or "")[:300],
-            "permanent": bool(permanent)}
+            "permanent": bool(permanent), "skipped": bool(skipped)}
 
 
 def is_permanent(code: int) -> bool:
@@ -227,7 +232,11 @@ def drain(max_jobs: int | None = None) -> dict:
         except Exception as e:  # noqa: BLE001  an adapter must never kill the run
             res = result(False, error=f"adapter raised: {e}")
 
-        if res.get("ok"):
+        if res.get("skipped"):
+            r.update(status="skipped", error=res.get("error", ""))
+            stats["skipped"] += 1
+            print(f"[dist] {ch}: n/a for {r['slug']} — {res.get('error','')[:60]}")
+        elif res.get("ok"):
             r.update(status="posted", remote_url=res.get("remote_url", ""),
                      remote_id=res.get("remote_id", ""), error="",
                      posted_at=_now())

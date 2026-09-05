@@ -53,6 +53,12 @@ jobs:
           sudo apt-get install -y -qq ffmpeg pandoc
           pip install -q weasyprint python-docx markdown curl_cffi secp256k1 websocket-client
 
+      - name: Install butler (itch.io uploads)
+        run: |
+          curl -sL -o /tmp/butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip -o -q /tmp/butler.zip -d /usr/local/bin
+          chmod +x /usr/local/bin/butler
+          butler -V
       - name: Run daily cycle
         if: steps.claim.outputs.skip != '1'
         env:
@@ -131,6 +137,8 @@ jobs:
           EDGE_URL: ${{ secrets.EDGE_URL }}
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           PRODUCT_PAGE_BASE: ${{ secrets.PRODUCT_PAGE_BASE }}
+          UPSELL_PRO_URL: ${{ secrets.UPSELL_PRO_URL }}
+          UPSELL_CUSTOM_URL: ${{ secrets.UPSELL_CUSTOM_URL }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}

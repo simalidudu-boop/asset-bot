@@ -30,6 +30,12 @@ jobs:
       - name: Install deps
         run: pip install -q curl_cffi secp256k1 websocket-client
 
+      - name: Install butler (itch.io uploads)
+        run: |
+          curl -sL -o /tmp/butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip -o -q /tmp/butler.zip -d /usr/local/bin
+          chmod +x /usr/local/bin/butler
+          butler -V
       - name: Run factory 3
         env:
           F3_ENABLED: ${{ secrets.F3_ENABLED || '0' }}

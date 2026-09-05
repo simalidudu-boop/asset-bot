@@ -157,6 +157,22 @@ def one_asset(item: dict, idx: int) -> dict | None:
                        f"📦 {len(pack['prompts'])} copy-paste prompts, "
                        f"{len(pack.get('skills') or [])} step-by-step skills with code.")
 
+        # BOTH upsells belong on the PRODUCT PAGE, not just inside the file.
+        # They were rendering only into the deliverable — which the buyer sees
+        # after deciding. The store page is where the decision happens.
+        up = pack.get("upsell") or {}
+        pro_url = os.environ.get("UPSELL_PRO_URL", "").strip()
+        cw_url = os.environ.get("UPSELL_CUSTOM_URL", "").strip()
+        bits = []
+        if up.get("pro_teaser"):
+            line = f"⭐ **Pro version** — {up['pro_teaser']}"
+            bits.append(f"{line}\n👉 {pro_url}" if pro_url else line)
+        if up.get("custom_work_cta"):
+            line = f"🛠 **Custom work** — {up['custom_work_cta']}"
+            bits.append(f"{line}\n👉 {cw_url}" if cw_url else line)
+        if bits:
+            description += "\n\n---\n\n" + "\n\n".join(bits)
+
         # hosting: GitHub Releases = free public CDN (no R2/card needed)
         deliverable_paths = [Path(v) for k, v in artifacts.items()
                              if k in ("pdf", "docx", "zip", "html")]
@@ -182,7 +198,8 @@ def one_asset(item: dict, idx: int) -> dict | None:
         # instead of served from public GitHub Releases.
         res = publish.publish_asset(pack, slug, file_urls, image_urls,
                                     description,
-                                    local_files=[str(x) for x in deliverable_paths])
+                                    local_files=[str(x) for x in deliverable_paths],
+                                    video_url=video_url or "")
 
         # record for content engine — persist free/price/product_id/status so
         # pick_assets() and the dashboard stop guessing (see audit P3)
