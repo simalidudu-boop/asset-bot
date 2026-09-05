@@ -5,8 +5,12 @@ on:
     types: [created]
 
 permissions:
-  contents: read
+  contents: write
   issues: write
+
+concurrency:
+  group: review-queue-${{ github.event.issue.number }}
+  cancel-in-progress: false
 
 env:
   PYTHONUNBUFFERED: "1"
@@ -34,3 +38,17 @@ jobs:
           else
             python3 engine/reject_from_issue.py
           fi
+      - name: Commit manifest update
+        run: |
+          git config user.name "asset-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add state/manifest.json 2>/dev/null || true
+          git commit -m "bot: reconcile manifest for issue #${{ github.event.issue.number }}" || exit 0
+          for i in 1 2 3 4 5; do
+            if git pull --rebase --autostash -q && git push -q; then
+              echo "manifest pushed (attempt $i)"; exit 0
+            fi
+            echo "push attempt $i failed — retrying"; git rebase --abort 2>/dev/null || true
+            sleep $((i * 5))
+          done
+          echo "::error::could not push manifest after 5 attempts"; exit 1
