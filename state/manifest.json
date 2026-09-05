@@ -410,9 +410,9 @@
       "topic": "SEO-structured blog post outlines with entity mapping",
       "kind": "prompt-pack",
       "free": false,
-      "price": 11,
+      "price": 11.0,
       "product_id": "prod_lY8V0LqQ9dr0x",
-      "status": "pending_approval",
+      "status": "live",
       "page_url": "https://whop.com/the-algorithmic-daemon-concern/seo-outline-architect-entity-mapping-edition",
       "created": "2026-09-05T06:23:17Z",
       "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-05-61ff6f30ee00883d.mp4",
@@ -421,7 +421,29 @@
         "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/seo-outline-architect-entity-mapping-edition-img-1-v2.jpg",
         "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/seo-outline-architect-entity-mapping-edition-img-2-v2.jpg"
       ],
-      "marketplace_status": null,
+      "release_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/seo-outline-architect-entity-mapping-edition-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/seo-outline-architect-entity-mapping-edition-img-2-v2.jpg"
+      ],
+      "files": [
+        {
+          "name": "seo-outline-architect-entity-mapping-edition.pdf",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/seo-outline-architect-entity-mapping-edition-seo-outline-architect-entity-mapping-edition.pdf"
+        },
+        {
+          "name": "seo-outline-architect-entity-mapping-edition.docx",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/seo-outline-architect-entity-mapping-edition-seo-outline-architect-entity-mapping-edition.docx"
+        },
+        {
+          "name": "seo-outline-architect-entity-mapping-edition.zip",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/seo-outline-architect-entity-mapping-edition-seo-outline-architect-entity-mapping-edition.zip"
+        },
+        {
+          "name": "pack.html",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/seo-outline-architect-entity-mapping-edition-pack.html"
+        }
+      ],
+      "marketplace_status": "pending_review",
       "faq": [
         {
           "question": "What is \"entity mapping\" in SEO?",
