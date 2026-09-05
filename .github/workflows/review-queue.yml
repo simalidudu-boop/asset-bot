@@ -14,7 +14,18 @@ env:
 jobs:
   handle:
     runs-on: ubuntu-latest
-    if: contains(github.event.comment.body, '/approve') || contains(github.event.comment.body, '/reject')
+    # SECURITY: gate on WHO commented, not just what they said.
+    # 2026-09-05: an unrelated GitHub user (author_association=NONE) commented
+    # "/approve" on issue #10 and published a $11 product to the live Whop
+    # store. The old condition checked only the comment body, so ANY user on
+    # the internet could publish, price and list products.
+    # OWNER/MEMBER/COLLABORATOR are the only associations that imply write
+    # access to this repo.
+    if: |
+      (contains(github.event.comment.body, '/approve') ||
+       contains(github.event.comment.body, '/reject')) &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
+               github.event.comment.author_association)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
