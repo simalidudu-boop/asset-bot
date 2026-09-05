@@ -521,9 +521,9 @@
       "topic": "Social Media Content Calendar Planning",
       "kind": "prompt-pack",
       "free": false,
-      "price": 11,
+      "price": 11.0,
       "product_id": "prod_a07dGIsKNjDEY",
-      "status": "pending_approval",
+      "status": "live",
       "page_url": "https://whop.com/the-algorithmic-daemon-concern/social-media-content-calendar-power-pack",
       "created": "2026-09-05T13:51:27Z",
       "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-05-709a07061af03d45.mp4",
@@ -532,7 +532,29 @@
         "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/social-media-content-calendar-power-pack-img-1-v2.jpg",
         "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/social-media-content-calendar-power-pack-img-2-v2.jpg"
       ],
-      "marketplace_status": null,
+      "release_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/social-media-content-calendar-power-pack-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/social-media-content-calendar-power-pack-img-2-v2.jpg"
+      ],
+      "files": [
+        {
+          "name": "social-media-content-calendar-power-pack.pdf",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/social-media-content-calendar-power-pack-social-media-content-calendar-power-pack.pdf"
+        },
+        {
+          "name": "social-media-content-calendar-power-pack.docx",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/social-media-content-calendar-power-pack-social-media-content-calendar-power-pack.docx"
+        },
+        {
+          "name": "social-media-content-calendar-power-pack.zip",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/social-media-content-calendar-power-pack-social-media-content-calendar-power-pack.zip"
+        },
+        {
+          "name": "pack.html",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/social-media-content-calendar-power-pack-pack.html"
+        }
+      ],
+      "marketplace_status": "pending_review",
       "faq": [
         {
           "question": "How do I integrate these prompts into my existing workflow?",
