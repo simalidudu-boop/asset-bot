@@ -161,6 +161,17 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
         rz.alert("Distribution enqueue failed", f"`{e}`", level="warn",
                  dedupe="enqueue-fail")
 
+    # Whop-native reach: chat broadcast (+ DMs when explicitly enabled).
+    # Members and chat feeds are audience we already have; the forum posts
+    # alone were only reaching two empty forums.
+    try:
+        import whop_reach
+        whop_reach.announce(pack.get("title", slug),
+                            page_url or result.get("page_url", ""),
+                            pack.get("subtitle", ""), asset_slug=slug)
+    except Exception as e:  # noqa: BLE001
+        print(f"[reach] skipped: {e}")
+
     # FAQs: no product field exists, so attach the FAQ app as an experience
     # (sidebar item) and print the generated copy for the one manual paste.
     marketplace.faq_report(product_id, pack.get("faq"))
