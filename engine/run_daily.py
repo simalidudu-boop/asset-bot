@@ -178,7 +178,11 @@ def one_asset(item: dict, idx: int) -> dict | None:
             except Exception as e:
                 print(f"[daily] video upload failed: {e}")
 
-        res = publish.publish_asset(pack, slug, file_urls, image_urls, description)
+        # local_files lets paid deliverables be uploaded to Whop privately
+        # instead of served from public GitHub Releases.
+        res = publish.publish_asset(pack, slug, file_urls, image_urls,
+                                    description,
+                                    local_files=[str(x) for x in deliverable_paths])
 
         # record for content engine — persist free/price/product_id/status so
         # pick_assets() and the dashboard stop guessing (see audit P3)

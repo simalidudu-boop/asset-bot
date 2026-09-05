@@ -25,7 +25,7 @@ Damage: product set to `hidden`, **zero sales occurred**.
 
 ## 🔴 CRITICAL 2 — Paid products are free to download
 
-**Status: OPEN — needs a decision.**
+**Status: FIXED 2026-09-05 (Option A).**
 
 Deliverables are hosted as **public GitHub Release assets**, and every review
 issue publishes the direct links in a public repo. Verified as an anonymous
@@ -91,3 +91,45 @@ which also requires a token.
 2. **Rotate every credential.** All were pasted in chat; none are in the repo,
    but chat history is not a vault.
 3. The unauthorised product `prod_lY8V0LqQ9dr0x` is hidden — approve or archive.
+
+
+---
+
+## CRITICAL 2 — fix applied (Option A)
+
+Paid deliverables now go to **Whop's private file store**, not public GitHub
+Releases. Free products are unchanged: their public links *are* the funnel.
+
+`engine/whop_files.py`, verified end to end against the live API:
+
+```
+POST /files {filename, byte_size, visibility:"private"}
+  -> {id, upload_url, upload_headers, upload_status:"pending"}
+PUT bytes -> 200
+GET /files/{id} -> upload_status "ready", signed url
+
+signed URL   -> 200
+unsigned URL -> 403      <-- the whole point
+```
+
+Signed URLs carry `X-Amz-Expires=86400`, so `signed_url()` re-fetches rather
+than caching, and polls for `ready` — asking too early returns no URL at all,
+which silently produced an empty download block during testing.
+
+### Review issues no longer leak links
+
+They exposed download URLs **twice**: in the markdown and again in the JSON
+payload. Both stripped — filenames are still listed so the issue stays useful.
+Verified on a rendered body: **0 release URLs, filenames intact**.
+
+### Residual risks — worth knowing
+
+1. **The 177 already-public files stay public.** This fix protects new paid
+   products. Old release assets must be deleted by hand if that matters;
+   the free ones should stay.
+2. **Signed links expire in 24h.** A buyer returning on day 3 needs a
+   refreshed link. Whop's own attachment UI is the durable answer; this stops
+   the bleeding.
+3. **Files over 5MB** need the multipart path, which is not implemented. Our
+   packs are far smaller, and the uploader returns a clear error rather than
+   failing silently.

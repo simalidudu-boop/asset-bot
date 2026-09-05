@@ -66,19 +66,36 @@ def update_product(product_id: str, visibility: str = "visible") -> dict:
 
 
 def publish_asset(pack: dict, slug: str, file_urls: list[dict],
-                  image_urls: list[str], description: str) -> dict:
+                  image_urls: list[str], description: str,
+                  local_files: list | None = None) -> dict:
     """Create product; free -> $0 plan live now, paid -> review Issue.
 
     file_urls: [{"name", "url"}] from hosting.py (GitHub Releases).
     image_urls: public promo image URLs (gallery)."""
     price = 0.0 if pack.get("free") else price_for(pack)
+    local_files = local_files or []
 
-    # free products: buyers must get the files — append download links to
-    # the description (release URLs are stable public CDN links)
+    # FREE products: public GitHub Release links are correct — the whole
+    # point is frictionless access, and they double as the funnel.
     if price == 0.0 and file_urls:
         links_txt = "\n".join(f"- [{f['name']}]({f['url']})" for f in file_urls)
         description = (description + "\n\n## Your downloads\n" + links_txt +
                        "\n\n*(Instant delivery — click any file to download.)*")
+
+    # PAID products: NEVER link public release assets. Verified 2026-09-05 that
+    # an anonymous stranger could download the $11 pack's PDF/DOCX/ZIP straight
+    # from GitHub. Paid deliverables are uploaded to Whop as PRIVATE files and
+    # served through signed, expiring URLs (signed 200 / unsigned 403).
+    paid_files = []
+    if price > 0 and local_files:
+        try:
+            import whop_files
+            up = whop_files.upload_deliverables(local_files, slug)
+            paid_files = up.get("files") or []
+            if up.get("errors"):
+                print(f"[publish] some paid uploads failed: {up['errors'][:2]}")
+        except Exception as e:  # noqa: BLE001
+            print(f"[publish] private upload skipped: {e}")
 
     payload = {
         "company_id": COMPANY_ID,
@@ -135,6 +152,18 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
     # channel. Observed: 4 unapproved products queued 68 posts between them.
     # approve() re-enqueues once the product goes visible.
     if price != 0.0:
+        # signed download links live on the product page, behind checkout
+        if paid_files:
+            try:
+                import whop_files
+                block = whop_files.delivery_block(paid_files)
+                if block:
+                    whop._request("PATCH", f"/products/{product_id}",
+                                  {"description": (description + block)[:8000]})
+                    print(f"[publish] {len(paid_files)} private file(s) attached")
+                    result["paid_files"] = [f["file_id"] for f in paid_files]
+            except Exception as e:  # noqa: BLE001
+                print(f"[publish] delivery block failed: {e}")
         print(f"[dist] {slug}: paid asset pending approval — not enqueued yet")
         return _finish_paid(result, pack, slug, price, image_urls,
                             file_urls, page_url, product_id)

@@ -50,8 +50,11 @@ def open_review_issue(pack: dict, slug: str, price: float,
 **Images:**
 {chr(10).join(f'- {i}' for i in images) or '- (none)'}
 
-**Deliverables:**
-{chr(10).join(f"- [{f['name']}]({f['url']})" for f in files) or '- (none)'}
+**Deliverables:** {len(files)} file(s)
+{chr(10).join(f"- {f['name']}" for f in files) or '- (none)'}
+
+*(Download links are deliberately omitted — this repo is public. Verified
+2026-09-05 that published links let anyone download paid products for free.)*
 
 {('**Whop page:** ' + page_url) if page_url else ''}
 
@@ -60,8 +63,9 @@ Comment **`/approve`** to publish to Whop, or **`/reject <reason>`** to archive.
 
 ```json
 {json.dumps({"slug": slug, "pack": pack, "price": price,
-             "images": images, "files": files, "page_url": page_url,
-             "product_id": product_id})}
+             "images": images,
+             "files": [{"name": f["name"]} for f in files],
+             "page_url": page_url, "product_id": product_id})}
 ```
 """
     if DRY:
