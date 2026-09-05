@@ -121,6 +121,23 @@ already ran.</p>
 <tr><td><code>appsscript/youtube-bridge.gs</code></td><td>YouTube upload + Blogger email, via Google Apps Script.</td></tr>
 </table>
 
+<h2>4b. Factory 4 — THE UTILITY</h2>
+<p>Free browser tools served from the Worker at <code>/tools</code>. Two halves:
+an <b>announcer</b> that rotates the tool set through the mesh (5 tools x 3
+angles = 15 distinct posts before repeating), and a <b>producer</b>
+(<code>generate_tool_html.py</code>) whose QC <b>executes the generated
+JavaScript in Node</b> and rejects anything that renders but computes nothing.</p>
+<p>Two tools are backed by Factory 3 datasets — that is the moat: a generic AI
+wrapper is a weekend's work to clone, the corpus is not.</p>
+
+<h2>4c. Upsells</h2>
+<p>Every free lead magnet carries <b>two</b> upsells, on the product page as
+well as in the file: a <b>Pro version</b> (auto-matched to the most related
+live paid product by topic overlap) and <b>custom work</b> (pointing at
+<code>/custom</code>, a lead-capture page on the Worker).</p>
+<p>Whop's <code>/leads</code> API rejects every email submitted to it, so
+capture is self-hosted in KV with a Discord alert per lead.</p>
+
 <h2>5. Distribution mesh — 22 channels</h2>
 <p><b>Status: <span class="ok">LIVE</span></b> (<code>DIST_POSTING_MODE=LIVE</code>).
 <b>Only Whop can take money.</b> Everything else is a pointer or a
@@ -238,6 +255,11 @@ push protection will reject it.</li>
 <tr><td>Pack <code>skills</code> key</td><td>Optional in practice — the LLM omits it under truncation. Three call sites indexed it directly and a <code>KeyError</code> killed a pack that had already scored 100/100. <code>ensure_shape()</code> now guarantees it.</td></tr>
 <tr><td>Distributing paid assets</td><td>Paid products are <code>hidden</code> until <code>/approve</code>. Enqueuing at publish time broadcasts a dead link — 4 products once queued 68 such posts. Only enqueue when <code>price == 0</code>; <code>approve()</code> enqueues the rest.</td></tr>
 <tr><td>LLM prompt counts</td><td>Models under-deliver (3 prompts when 10 requested). The generator now asks once for the shortfall rather than lowering the QC bar.</td></tr>
+<tr><td>Distribution <code>video_url</code></td><td>Videos ARE generated, but <code>publish.py</code> never passed <code>video_url</code> into the enqueue payload — so YouTube saw "no video" on every asset and marked itself failed. Silently disabled the channel for weeks.</td></tr>
+<tr><td>skipped vs failed</td><td>"Channel not applicable to this asset" (no video, no ITCH_TARGET, butler absent) used to count as <b>failed</b>, burying real problems in the dashboard. Adapters now return <code>skipped=True</code>.</td></tr>
+<tr><td>Whop <code>/leads</code></td><td>Rejects every email with <code>Invalid value for parameter 'email'</code>, including valid ones. Use self-hosted capture.</td></tr>
+<tr><td>DM channel creation</td><td>The parameter is <b><code>with_user_ids</code></b>, not <code>user_ids</code> — undocumented and absent from the OpenAPI spec. Every wrong name echoes back "Missing required parameter: &lt;your name&gt;", so send an EMPTY body to learn the real one.</td></tr>
+<tr><td>Whop chat</td><td>Works with the <b>app key only</b> (not the company key), and the chat may block URLs — the adapter retries without the link.</td></tr>
 <tr><td><code>actions/cache</code> on <code>state/</code></td><td>Clobbered the git-tracked manifest. <b>Never reintroduce.</b></td></tr>
 </table>
 

@@ -9,6 +9,7 @@ run_daily.py — Phases A+B of the production cycle.
 Usage: python3 engine/run_daily.py [--mock] [--dry-run] [--assets-only]
 """
 import json
+import re
 import os
 import sys
 import traceback
@@ -78,6 +79,46 @@ def _image_prompts(pack: dict, slug: str) -> list[str]:
         f"faces. No text or typography. Square, striking, high contrast, "
         f"professional business aesthetic.",
     ]
+
+
+PACK_PAGE_BASE = (os.environ.get("PACK_PAGE_BASE")
+                  or "https://asset-bot-edge.simalidudu.workers.dev").rstrip("/")
+
+
+def _best_paid_match(pack: dict, slug: str) -> str:
+    """Pick the live PAID product most related to this free pack.
+
+    Scored on shared words between titles/topics/keywords. Falls back to the
+    store front page rather than linking nothing — but never links the free
+    pack to itself.
+    """
+    try:
+        man = json.loads((ROOT / "state" / "manifest.json").read_text())
+    except Exception:  # noqa: BLE001
+        return ""
+
+    def words(*parts):
+        out = set()
+        for p in parts:
+            if isinstance(p, list):
+                p = " ".join(str(x) for x in p)
+            out |= {w for w in re.findall(r"[a-z]{4,}", str(p).lower())}
+        return out
+
+    mine = words(pack.get("title"), pack.get("topic"), pack.get("keywords"))
+    best, score = "", 0
+    for a in man.get("assets", []):
+        if not a.get("product_id") or (a.get("price") or 0) <= 0:
+            continue
+        if a.get("slug") == slug or not a.get("page_url"):
+            continue
+        overlap = len(mine & words(a.get("title"), a.get("topic")))
+        if overlap > score:
+            best, score = a["page_url"], overlap
+    if best:
+        return best
+    store = os.environ.get("PRODUCT_PAGE_BASE", "").strip()
+    return store or ""
 
 
 def one_asset(item: dict, idx: int) -> dict | None:
@@ -161,8 +202,14 @@ def one_asset(item: dict, idx: int) -> dict | None:
         # They were rendering only into the deliverable — which the buyer sees
         # after deciding. The store page is where the decision happens.
         up = pack.get("upsell") or {}
+        # PRO upsell points at a REAL paid product, chosen by topic overlap
+        # with this free pack — a generic link converts far worse than
+        # "the paid version of what you just downloaded".
         pro_url = os.environ.get("UPSELL_PRO_URL", "").strip()
-        cw_url = os.environ.get("UPSELL_CUSTOM_URL", "").strip()
+        if price == 0.0 and not pro_url:
+            pro_url = _best_paid_match(pack, slug)
+        cw_url = (os.environ.get("UPSELL_CUSTOM_URL", "").strip()
+                  or f"{PACK_PAGE_BASE}/custom?from={slug}")
         bits = []
         if up.get("pro_teaser"):
             line = f"⭐ **Pro version** — {up['pro_teaser']}"

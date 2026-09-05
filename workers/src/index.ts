@@ -556,6 +556,138 @@ export default {
       });
     }
 
+    // ---- /custom — lead capture for custom work ----
+    // UPSELL_CUSTOM_URL points here. Whop's /leads API rejects every email we
+    // send it ("Invalid value for parameter 'email'"), so capture is hosted
+    // on the Worker and stored in KV instead.
+    if (p === "/custom" && request.method === "GET") {
+      const from = url.searchParams.get("from") || "";
+      const esc = (t: any) => String(t ?? "").replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      return new Response(`<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Custom Prompt Pack — Built For Your Niche</title>
+<meta name="description" content="Request a custom AI prompt pack built around your niche, brand voice and workflow. Tell us what you need and we will scope it.">
+<link rel="canonical" href="${url.origin}/custom">
+<meta property="og:title" content="Custom Prompt Pack">
+<meta property="og:description" content="Built around your niche and brand voice.">
+<style>
+ :root{color-scheme:dark}
+ *{box-sizing:border-box}
+ body{margin:0;padding:34px 18px 70px;background:#0f1115;color:#e8eaed;
+  font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+ .w{max-width:620px;margin:0 auto} a{color:#7cc4ff}
+ h1{font-size:28px;margin:0 0 8px} .mut{color:#9aa3b2}
+ label{display:block;font-size:13px;color:#9aa3b2;margin:16px 0 6px}
+ input,textarea{width:100%;background:#0b0d12;color:#e8eaed;border:1px solid #2a2e37;
+  border-radius:8px;padding:11px;font:14px inherit}
+ button{background:#7cc4ff;color:#06202f;border:0;border-radius:8px;padding:13px 26px;
+  font-weight:700;font-size:15px;cursor:pointer;margin-top:18px}
+ button:hover{filter:brightness(1.1)}
+ .card{background:#161922;border:1px solid #2a2e37;border-radius:10px;padding:16px;margin:18px 0}
+ .ok{border-color:#245c3a}
+ ul{margin:8px 0 0 18px;padding:0} li{margin:4px 0}
+</style></head><body><div class="w">
+<h1>Custom prompt pack</h1>
+<p class="mut">The free packs are built for everyone. This one gets built for you —
+your niche, your brand voice, your actual workflow.</p>
+<div class="card">
+  <b>What you get</b>
+  <ul>
+    <li>A pack scoped to your exact use case, not a generic template</li>
+    <li>Prompts tested against your real inputs</li>
+    <li>Delivered as Markdown, PDF and DOCX</li>
+    <li>One revision round included</li>
+  </ul>
+</div>
+<form id="f" onsubmit="return send(event)">
+  <label for="email">Email</label>
+  <input id="email" type="email" required placeholder="you@company.com">
+  <label for="niche">What is your niche or business?</label>
+  <input id="niche" required placeholder="e.g. real estate agent in Dubai">
+  <label for="need">What should the pack do for you?</label>
+  <textarea id="need" rows="4" required placeholder="Describe the workflow you want automated…"></textarea>
+  <input id="from" type="hidden" value="${esc(from)}">
+  <button type="submit">Request a quote</button>
+</form>
+<div id="out"></div>
+<p class="mut" style="margin-top:26px"><a href="${url.origin}/p">← browse the free packs</a></p>
+<script>
+async function send(e){
+  e.preventDefault();
+  const b={email:document.getElementById('email').value,
+           niche:document.getElementById('niche').value,
+           need:document.getElementById('need').value,
+           from:document.getElementById('from').value};
+  const out=document.getElementById('out');
+  out.innerHTML='<p class="mut">Sending…</p>';
+  try{
+    const r=await fetch('/api/lead',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+    if(r.ok){
+      document.getElementById('f').style.display='none';
+      out.innerHTML='<div class="card ok"><b>Got it.</b><br>'+
+        '<span class="mut">You will get a reply with scope and price. '+
+        'No spam, no list — this address is only used to answer you.</span></div>';
+    } else { out.innerHTML='<p style="color:#e74c3c">Something went wrong. '+
+             'Email us directly instead.</p>'; }
+  }catch(err){ out.innerHTML='<p style="color:#e74c3c">Network error.</p>'; }
+  return false;
+}
+</script>
+</div></body></html>`, {
+        headers: { "content-type": "text/html; charset=utf-8",
+                   "cache-control": "public, max-age=300" } });
+    }
+
+    // Store a captured lead. Public by necessity (it is a public form), so it
+    // is rate-limited by KV key and validated server-side.
+    if (p === "/api/lead" && request.method === "POST") {
+      let b: any = {};
+      try { b = await request.json(); } catch { /* handled below */ }
+      const email = String(b.email ?? "").trim().slice(0, 200);
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return new Response(JSON.stringify({ ok: false, error: "bad email" }),
+          { status: 400, headers: { "content-type": "application/json" } });
+      }
+      const lead = {
+        email,
+        niche: String(b.niche ?? "").slice(0, 300),
+        need: String(b.need ?? "").slice(0, 2000),
+        from: String(b.from ?? "").slice(0, 120),
+        at: new Date().toISOString(),
+      };
+      try {
+        const raw = await env.BOT_STATE.get("leads");
+        const leads: any[] = raw ? JSON.parse(raw) : [];
+        if (!leads.some((l) => l.email === email && l.from === lead.from)) {
+          leads.unshift(lead);
+          while (leads.length > 500) leads.pop();
+          await env.BOT_STATE.put("leads", JSON.stringify(leads));
+          const hook = env.DISCORD_ALERT_WEBHOOK ?? "";
+          if (hook) {
+            await fetch(hook, { method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ embeds: [{
+                title: "🎯 New custom-work lead",
+                description: `**${lead.email}**\n${lead.niche}\n\n${lead.need.slice(0, 400)}`
+                  + (lead.from ? `\n\n_from: ${lead.from}_` : ""),
+                color: 0x7cc4ff }] }) }).catch(() => {});
+          }
+        }
+      } catch { /* never fail the form on storage problems */ }
+      return json({ ok: true });
+    }
+
+    if (p === "/api/leads" && request.method === "GET") {
+      if (!authed(env, request)) {
+        return new Response("unauthorized", { status: 401 });
+      }
+      const raw = await env.BOT_STATE.get("leads");
+      const leads: any[] = raw ? JSON.parse(raw) : [];
+      return json({ ok: true, count: leads.length, leads: leads.slice(0, 50) });
+    }
+
     // ---- Factory 4: free browser tools ----
     // Dataset-backed, bring-your-own-key, and carrying the canonical +
     // JSON-LD + og tags that comparable tool sites omit.
@@ -643,7 +775,8 @@ ${items}
       if (p === "/sitemap.xml") {
         const urls = [`${origin}/p`, ...live.map((a: any) => `${origin}/p/${a.slug}`),
                       `${origin}/tools`,
-                      ...TOOLS.map((t) => `${origin}/tools/${t.slug}`)];
+                      ...TOOLS.map((t) => `${origin}/tools/${t.slug}`),
+                      `${origin}/custom`];
         return new Response(
           `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
           urls.map((u) => `<url><loc>${u}</loc></url>`).join("\n") +

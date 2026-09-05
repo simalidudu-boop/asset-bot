@@ -7,6 +7,7 @@ Three factories, three architectures — see **[`docs/FACTORIES.md`](docs/FACTOR
 | **F1** | **The Storefront** | gated — checkout then download | Whop | running |
 | F2 | The Broker | n/a (affiliate content) | commissions | **shut down** |
 | **F3** | **The Commons** | ungated — `git clone` / raw URL | zaps + sponsors | running, LIVE |
+| **F4** | **The Utility** | free browser tools at `/tools` | zaps | running, LIVE |
 
 An autonomous digital-product factory. Every day it invents a topic, generates
 an AI prompt pack, renders images and video, packages it, publishes it as a
@@ -174,3 +175,32 @@ involvement.
 | `ensure_shape()` | A missing `skills` key `KeyError`d a pack that had already scored 100/100 |
 | Prompt top-up | Models return 3 prompts when asked for 10 — now tops up instead of failing QC |
 | Paid assets not enqueued | 4 hidden products had queued **68 posts** pointing at dead links |
+
+
+## Upsells
+
+Every free lead magnet carries **two** upsells, on the product page (where the
+buying decision happens) as well as inside the deliverable:
+
+| Upsell | Where it points |
+|---|---|
+| ⭐ **Pro version** | the live PAID product most related to that free pack, chosen by topic-word overlap. Falls back to the store front page. Override with `UPSELL_PRO_URL`. |
+| 🛠 **Custom work** | `/custom` — a lead-capture page on the Worker. Override with `UPSELL_CUSTOM_URL`. |
+
+Both are guaranteed by `ensure_shape()` even when the LLM omits them.
+
+**Why capture is self-hosted:** Whop's `/leads` API rejects every email we send
+it (`Invalid value for parameter 'email'`), so leads are stored in Worker KV and
+announced to Discord instead. Read them with `GET /api/leads` + `X-Bot-Token`.
+
+## Worker routes
+
+| Route | What |
+|---|---|
+| `/` | Command Center dashboard |
+| `/p`, `/p/:slug` | canonical pack pages (JSON-LD, OG, zap CTA) |
+| `/tools`, `/tools/:slug` | Factory 4 browser tools |
+| `/custom` | custom-work lead capture |
+| `/sitemap.xml`, `/rss.xml`, `/robots.txt` | SEO plumbing |
+| `/api/factories` | all-factory status + staleness alerts |
+| `/api/sales`, `/api/kofi` | revenue tracking + Ko-fi webhook |
