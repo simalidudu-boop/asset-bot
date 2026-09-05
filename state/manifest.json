@@ -440,6 +440,80 @@
           "answer": "No. Every prompt works on the free tiers of ChatGPT, Claude and Gemini."
         }
       ]
+    },
+    {
+      "slug": "e-commerce-copy-catalyst",
+      "title": "E-commerce Copy Catalyst",
+      "topic": "E-commerce product descriptions and advertising copy",
+      "kind": "prompt-pack",
+      "free": false,
+      "price": 11,
+      "product_id": "prod_lOBPQ3a0c9wjQ",
+      "status": "pending_approval",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/e-commerce-copy-catalyst",
+      "created": "2026-09-05T13:22:13Z",
+      "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-05-edd04cf73b7cabd0.mp4",
+      "cover_status": "set",
+      "gallery_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/e-commerce-copy-catalyst-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/e-commerce-copy-catalyst-img-2-v2.jpg"
+      ],
+      "marketplace_status": null,
+      "faq": [
+        {
+          "question": "How do I use these prompts effectively?",
+          "answer": "Paste the prompt directly into your AI model (ChatGPT, Claude, etc.) and replace the bracketed placeholders with your specific product details. Experiment with different details to get varied outputs."
+        },
+        {
+          "question": "Can I customize the generated copy?",
+          "answer": "Absolutely. The AI-generated output is a strong starting point. Always review, refine, and adapt the copy to perfectly match your brand voice and specific campaign goals."
+        },
+        {
+          "question": "What if I don't get the desired output?",
+          "answer": "Try re-running the prompt with slightly different instructions or more specific details. Sometimes, adding examples or clarifying your target audience helps the AI generate better results."
+        },
+        {
+          "question": "What exactly do I get?",
+          "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
+        }
+      ]
+    },
+    {
+      "slug": "long-text-to-social-gold",
+      "title": "Long Text to Social Gold",
+      "topic": "Converting long-form text into short-form social media assets",
+      "kind": "prompt-pack",
+      "free": false,
+      "price": 11,
+      "product_id": "prod_8rO1cRyuwNOUR",
+      "status": "pending_approval",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/long-text-to-social-gold",
+      "created": "2026-09-05T13:23:12Z",
+      "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-05-a96619c3f1253ade.mp4",
+      "cover_status": "set",
+      "gallery_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/long-text-to-social-gold-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/long-text-to-social-gold-img-2-v2.jpg"
+      ],
+      "marketplace_status": null,
+      "faq": [
+        {
+          "question": "How do I use these prompts effectively?",
+          "answer": "Paste your long-form content directly into the `[LONG_FORM_TEXT_HERE]` placeholder. Read the prompt carefully and adjust any bracketed instructions (like `[INDUSTRY]`) to fit your specific needs before running it."
+        },
+        {
+          "question": "Can I use these prompts with any AI model?",
+          "answer": "Yes, these prompts are designed to be compatible with most large language models (LLMs) like ChatGPT, Claude, or Bard. Performance may vary slightly depending on the model's capabilities and training data."
+        },
+        {
+          "question": "What kind of long-form text works best?",
+          "answer": "Blog posts, articles, whitepapers, research reports, podcast transcripts, and video scripts are all excellent candidates. The more detailed and well-structured your original text, the better the AI's output will be."
+        },
+        {
+          "question": "What exactly do I get?",
+          "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
+        }
+      ]
     }
   ],
   "posts": [
