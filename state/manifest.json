@@ -484,9 +484,9 @@
       "topic": "Converting long-form text into short-form social media assets",
       "kind": "prompt-pack",
       "free": false,
-      "price": 11,
+      "price": 11.0,
       "product_id": "prod_8rO1cRyuwNOUR",
-      "status": "pending_approval",
+      "status": "live",
       "page_url": "https://whop.com/the-algorithmic-daemon-concern/long-text-to-social-gold",
       "created": "2026-09-05T13:23:12Z",
       "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-05-a96619c3f1253ade.mp4",
@@ -495,7 +495,29 @@
         "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/long-text-to-social-gold-img-1-v2.jpg",
         "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/long-text-to-social-gold-img-2-v2.jpg"
       ],
-      "marketplace_status": null,
+      "release_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/long-text-to-social-gold-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/long-text-to-social-gold-img-2-v2.jpg"
+      ],
+      "files": [
+        {
+          "name": "long-text-to-social-gold.pdf",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/long-text-to-social-gold-long-text-to-social-gold.pdf"
+        },
+        {
+          "name": "long-text-to-social-gold.docx",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/long-text-to-social-gold-long-text-to-social-gold.docx"
+        },
+        {
+          "name": "long-text-to-social-gold.zip",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/long-text-to-social-gold-long-text-to-social-gold.zip"
+        },
+        {
+          "name": "pack.html",
+          "url": "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/long-text-to-social-gold-pack.html"
+        }
+      ],
+      "marketplace_status": "pending_review",
       "faq": [
         {
           "question": "How do I use these prompts effectively?",
