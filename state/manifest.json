@@ -514,6 +514,80 @@
           "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
         }
       ]
+    },
+    {
+      "slug": "social-media-content-calendar-power-pack",
+      "title": "Social Media Content Calendar Power Pack",
+      "topic": "Social Media Content Calendar Planning",
+      "kind": "prompt-pack",
+      "free": false,
+      "price": 11,
+      "product_id": "prod_a07dGIsKNjDEY",
+      "status": "pending_approval",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/social-media-content-calendar-power-pack",
+      "created": "2026-09-05T13:51:27Z",
+      "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-05-709a07061af03d45.mp4",
+      "cover_status": "set",
+      "gallery_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/social-media-content-calendar-power-pack-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/social-media-content-calendar-power-pack-img-2-v2.jpg"
+      ],
+      "marketplace_status": null,
+      "faq": [
+        {
+          "question": "How do I integrate these prompts into my existing workflow?",
+          "answer": "Copy, paste, and customize. These prompts are designed to be immediately usable. Input your specific details, and the AI will generate content ideas you can drop directly into your calendar."
+        },
+        {
+          "question": "Can I use these for any industry?",
+          "answer": "Yes, just provide your specific niche and target audience within the prompt's bracketed instructions. The AI adapts to your context, generating relevant and tailored content suggestions."
+        },
+        {
+          "question": "What exactly do I get?",
+          "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
+        },
+        {
+          "question": "Do I need a paid AI subscription?",
+          "answer": "No. Every prompt works on the free tiers of ChatGPT, Claude and Gemini."
+        }
+      ]
+    },
+    {
+      "slug": "data-storyteller-s-toolkit",
+      "title": "Data Storyteller's Toolkit",
+      "topic": "Data Analysis & Visualization Workflows",
+      "kind": "prompt-pack",
+      "free": false,
+      "price": 11,
+      "product_id": "prod_Cw3vVbUJLp3Ip",
+      "status": "pending_approval",
+      "page_url": "https://whop.com/the-algorithmic-daemon-concern/data-storyteller-s-toolkit",
+      "created": "2026-09-05T13:52:43Z",
+      "video_url": "https://json2video-cdn1.s3.amazonaws.com/clients/LFOCu1bugL/renders/2026-09-05-dba367918de0581b.mp4",
+      "cover_status": "set",
+      "gallery_images": [
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/data-storyteller-s-toolkit-img-1-v2.jpg",
+        "https://github.com/simalidudu-boop/asset-bot/releases/download/deliveries-2026-W36/data-storyteller-s-toolkit-img-2-v2.jpg"
+      ],
+      "marketplace_status": null,
+      "faq": [
+        {
+          "question": "What kind of data can I use these prompts with?",
+          "answer": "You can use these prompts with any structured dataset, including CSVs, Excel files, or database extracts. Just describe your data clearly in the prompt."
+        },
+        {
+          "question": "Do I need specific software to use this pack?",
+          "answer": "You only need access to an AI chatbot (like ChatGPT, Gemini, or Claude) to use the prompts. The included Python skills require a Python environment (e.g., Anaconda, Jupyter Notebook)."
+        },
+        {
+          "question": "How will this help me visualize data better?",
+          "answer": "This pack guides you to ask the right questions for visualization, suggests appropriate chart types, and helps structure your data narratives, leading to clearer and more impactful visuals."
+        },
+        {
+          "question": "What exactly do I get?",
+          "answer": "An instant download containing every prompt and skill in this pack, in Markdown, PDF and DOCX so it works wherever you do."
+        }
+      ]
     }
   ],
   "posts": [
