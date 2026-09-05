@@ -47,6 +47,37 @@ from pathlib import Path
 
 import whop_client as whop
 
+
+def _app_request(method: str, path: str, payload: dict | None = None):
+    """Chat/DM endpoints authenticate with the APP key, not the company key.
+
+    Verified 2026-09-05: with chat:message:create granted, the app key sends
+    successfully (200, post_1CekGjt…) while the company key still returns
+    "missing all required permissions: chat:message:create". The grant lives
+    on the app, so requests must be made as the app.
+    """
+    import json as _j
+    import urllib.error
+    import urllib.request
+
+    key = os.environ.get("WHOP_APP_API_KEY", "")
+    app_id = os.environ.get("WHOP_APP_ID", "")
+    if not key:
+        raise RuntimeError("WHOP_APP_API_KEY not set — chat/DM need the app key")
+    req = urllib.request.Request(
+        f"https://api.whop.com/api/v1{path}",
+        data=_j.dumps(payload).encode() if payload is not None else None,
+        method=method)
+    req.add_header("Authorization", f"Bearer {key}")
+    req.add_header("Content-Type", "application/json")
+    if app_id:
+        req.add_header("x-whop-app-id", app_id)
+    try:
+        with urllib.request.urlopen(req, timeout=45) as r:
+            return _j.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"whop {e.code}: {e.read().decode(errors='replace')[:200]}")
+
 STATE = Path(__file__).resolve().parent.parent / "state"
 DM_LEDGER = STATE / "dm_sent.json"
 
@@ -116,9 +147,29 @@ def broadcast_chat(text: str, company_id: str | None = None) -> dict:
         if not cid:
             continue
         try:
-            whop._request("POST", "/messages",
-                          {"channel_id": cid, "content": text[:2000]})
+            _app_request("POST", "/messages",
+                         {"channel_id": cid, "content": text[:2000]})
             sent.append(cid)
+        except Exception as e0:  # noqa: BLE001
+            # Chats can have "Posting URLs is not allowed" enabled. Rather
+            # than lose the announcement entirely, retry without the link —
+            # a message that lands beats one that 400s.
+            if "URLs is not allowed" in str(e0):
+                import re as _re
+                stripped = _re.sub(r"https?://\S+", "", text).strip()
+                stripped = _re.sub(r"\s{2,}", " ", stripped)
+                try:
+                    _app_request("POST", "/messages",
+                                 {"channel_id": cid,
+                                  "content": stripped[:2000]})
+                    sent.append(cid)
+                    print(f"[reach] {cid}: posted without URL "
+                          "(chat blocks links)")
+                    continue
+                except Exception as e1:  # noqa: BLE001
+                    errs.append(f"{cid}: {str(e1)[:120]}")
+                    continue
+            raise e0
         except Exception as e:  # noqa: BLE001
             msg = str(e)
             if "chat:message:create" in msg:
@@ -143,6 +194,18 @@ def dm_members(text: str, asset_slug: str,
     """
     if os.environ.get("WHOP_DM_ENABLED", "0") != "1":
         return {"skipped": "WHOP_DM_ENABLED != 1"}
+
+    # DMs need a DM CHANNEL first, and listing/creating one requires the
+    # `dms:read` permission. `dms:message:manage` alone is not sufficient —
+    # verified 2026-09-05: /dm_channels returns
+    # "missing all required permissions: dms:read" on both keys.
+    # Without it there is no channel_id to send to, so bail cleanly.
+    try:
+        _app_request("GET", "/dm_channels")
+    except Exception as e:  # noqa: BLE001
+        if "dms:read" in str(e):
+            return {"skipped": "needs dms:read on the app (then re-install)"}
+        return {"skipped": f"dm_channels unavailable: {str(e)[:100]}"}
 
     led = _ledger()
     done = set(led.get(asset_slug, []))
