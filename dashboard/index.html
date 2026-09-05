@@ -110,6 +110,7 @@
 
 <nav class="tabs">
   <button class="tab active" data-tab="ops" onclick="showTab('ops')">📊 Operations</button>
+  <button class="tab" data-tab="factories" onclick="showTab('factories')">🏭 Factories</button>
   <button class="tab" data-tab="charts" onclick="showTab('charts')">📈 Analytics</button>
   <button class="tab" data-tab="settings" onclick="showTab('settings')">⚙️ Settings</button>
 </nav>
@@ -188,6 +189,23 @@
   <div class="card">
     <h2>🏃 Recent runs</h2>
     <div class="body" id="runs"><div class="muted">loading…</div></div>
+  </div>
+</main>
+
+<main id="tab-factories" style="display:none">
+  <div class="card wide">
+    <h2>🏭 All factories</h2>
+    <div class="body">
+      <div id="fac-alerts"></div>
+      <div id="fac-grid" class="kpis"></div>
+      <div style="overflow-x:auto">
+        <table id="fac-table" style="width:100%;border-collapse:collapse;margin-top:14px;font-size:14px"></table>
+      </div>
+      <p class="muted" style="margin-top:12px">
+        Each factory owns its own state, queue and manifest. "Stale" means no
+        heartbeat in 48h — the signal that a factory died quietly.
+      </p>
+    </div>
   </div>
 </main>
 
@@ -329,11 +347,46 @@ async function review(issue,command){
   else toast("failed: "+(r.error||""));
 }
 
+async function loadFactories(){
+  let d; try{ d = await wfetch("/api/factories"); }catch(e){ return; }
+  if(!d || !d.factories) return;
+  const F = d.factories;
+  document.getElementById("fac-grid").innerHTML = `
+    <div class="kpi"><div class="n">${F.filter(f=>!f.stale && f.lastRun).length}/${F.length}</div><div class="l">running</div></div>
+    <div class="kpi"><div class="n">${d.totals.items}</div><div class="l">assets made</div></div>
+    <div class="kpi"><div class="n" style="color:var(--ok)">${d.totals.posted}</div><div class="l">posts out</div></div>
+    <div class="kpi"><div class="n" style="color:${d.totals.failed?"var(--bad)":"var(--fg)"}">${d.totals.failed}</div><div class="l">failed jobs</div></div>`;
+  document.getElementById("fac-alerts").innerHTML = (d.alerts||[]).length
+    ? `<div class="alert bad">${d.alerts.map(a=>"⚠ "+a).join("<br>")}</div>` : "";
+  const rows = F.map(f=>{
+    const age = f.ageHours==null ? "never"
+      : f.ageHours<1 ? Math.round(f.ageHours*60)+"m ago"
+      : f.ageHours<48 ? Math.round(f.ageHours)+"h ago"
+      : Math.round(f.ageHours/24)+"d ago";
+    const dot = f.lastRun==null ? "muted" : f.stale ? "bad" : "ok";
+    const q = f.queue||{};
+    return `<tr>
+      <td><b>${f.key.toUpperCase()}</b> ${f.name}</td>
+      <td class="muted">${f.kind}</td>
+      <td>${f.items}</td>
+      <td style="color:var(--ok)">${f.posted}</td>
+      <td style="color:${f.failed?"var(--bad)":"inherit"}">${f.failed||0}</td>
+      <td>${(q.pending||0)+(q.retry||0)}</td>
+      <td class="${dot}">${age}</td>
+      <td class="muted">${f.sells}</td></tr>`;
+  }).join("");
+  document.getElementById("fac-table").innerHTML =
+    `<tr style="text-align:left;color:var(--mut);font-size:12px;text-transform:uppercase">
+       <th>Factory</th><th>Produces</th><th>Assets</th><th>Posted</th>
+       <th>Failed</th><th>Queued</th><th>Last run</th><th>Money</th></tr>` + rows;
+}
+
 async function loadSales(){
   try{ window.__sales = await wfetch("/api/sales"); }catch(e){ window.__sales=null; }
 }
 async function refreshAll(){
   await loadSales();
+  await loadFactories();
   let s;
   try{
     s = await wfetch("/api/summary");

@@ -466,6 +466,96 @@ export default {
     // It appends ?productId=... (and other params) when embedding, so we
     // resolve the product from the query first, then fall back to matching
     // the experience id recorded in the manifest, then to the sole product.
+    // ---- /api/factories — one view across all factories ----
+    // The dashboard previously only knew about Factory 1, so F3 and F4 could
+    // fail silently for days. Each factory writes the same shape into its own
+    // state dir, so one loop covers them all.
+    if (p === "/api/factories" && request.method === "GET") {
+      const owner = env.GH_OWNER, repo = env.GH_REPO;
+      const readJson = async (fp: string) => {
+        const d = await gh(env, "GET",
+          `/repos/${owner}/${repo}/contents/${fp}`);
+        return JSON.parse(atob(String(d.content).replace(/\s/g, "")));
+      };
+      const readLines = async (fp: string) => {
+        const d = await gh(env, "GET",
+          `/repos/${owner}/${repo}/contents/${fp}`);
+        return atob(String(d.content).replace(/\s/g, ""))
+          .split("\n").filter(Boolean)
+          .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+          .filter(Boolean);
+      };
+      const quiet = async <T>(fn: () => Promise<T>, d: T): Promise<T> => {
+        try { return await fn(); } catch { return d; }
+      };
+
+      const defs = [
+        { key: "f1", name: "The Storefront", dir: "state",
+          kind: "prompt packs", sells: "Whop", hb: "daily" },
+        { key: "f2", name: "The Broker", dir: "factory2/state",
+          kind: "affiliate articles", sells: "affiliate", hb: "factory2" },
+        { key: "f3", name: "The Commons", dir: "factory3/state",
+          kind: "datasets + tools", sells: "zaps", hb: "factory3" },
+        { key: "f4", name: "The Utility", dir: "factory4/state",
+          kind: "browser tools", sells: "zaps", hb: "factory4" },
+      ];
+
+      const out: any[] = [];
+      for (const d of defs) {
+        const man = await quiet(() => readJson(`${d.dir}/manifest.json`), {} as any);
+        const hb = await quiet(() => readJson(`${d.dir}/heartbeat.json`), {} as any);
+        const q = await quiet(() => readLines(`${d.dir}/dist_queue.jsonl`), [] as any[]);
+
+        // manifests use different keys per factory
+        const items = man.assets || man.articles || man.datasets || [];
+        const beat = hb[d.hb] || hb.daily || {};
+        const byStatus: Record<string, number> = {};
+        for (const r of q) byStatus[r.status] = (byStatus[r.status] || 0) + 1;
+
+        // stale = no heartbeat in 48h. That is the signal that a factory
+        // died quietly, which is exactly what happened to F1 for a day.
+        let stale: boolean | null = null;
+        let ageH: number | null = null;
+        if (beat.at) {
+          ageH = (Date.now() - Date.parse(beat.at)) / 36e5;
+          stale = ageH > 48;
+        }
+
+        out.push({
+          key: d.key, name: d.name, kind: d.kind, sells: d.sells,
+          items: items.length,
+          live: items.filter((x: any) =>
+            x.status === "live" || x.status === undefined).length,
+          lastRun: beat.at || null,
+          lastCount: beat.count ?? null,
+          ageHours: ageH === null ? null : Math.round(ageH * 10) / 10,
+          stale,
+          queue: { total: q.length, ...byStatus },
+          posted: byStatus["posted"] || 0,
+          failed: byStatus["failed"] || 0,
+        });
+      }
+
+      const alerts: string[] = [];
+      for (const f of out) {
+        if (f.stale) alerts.push(`${f.name} (${f.key}) has not run in ${f.ageHours}h`);
+        if (f.failed > 0) alerts.push(`${f.name}: ${f.failed} failed distribution job(s)`);
+        if (f.items === 0 && f.key !== "f4") alerts.push(`${f.name} has produced nothing`);
+      }
+
+      return json({
+        ok: true,
+        generated_at: new Date().toISOString(),
+        factories: out,
+        totals: {
+          items: out.reduce((n, f) => n + f.items, 0),
+          posted: out.reduce((n, f) => n + f.posted, 0),
+          failed: out.reduce((n, f) => n + f.failed, 0),
+        },
+        alerts,
+      });
+    }
+
     // ---- Factory 4: free browser tools ----
     // Dataset-backed, bring-your-own-key, and carrying the canonical +
     // JSON-LD + og tags that comparable tool sites omit.

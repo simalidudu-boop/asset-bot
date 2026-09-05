@@ -151,6 +151,18 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
     # Whop until /approve, so enqueuing them broadcasts a dead link to every
     # channel. Observed: 4 unapproved products queued 68 posts between them.
     # approve() re-enqueues once the product goes visible.
+    # Whop-native reach: notification + chat (+ DMs when explicitly enabled).
+    # MUST run before the paid early-return below — a previous version sat
+    # after it, so paid assets (2 of 3 in the 2026-09-05 test run) announced
+    # to nobody and the logs showed no [reach] lines at all.
+    try:
+        import whop_reach
+        whop_reach.announce(pack.get("title", slug),
+                            page_url or result.get("page_url", ""),
+                            pack.get("subtitle", ""), asset_slug=slug)
+    except Exception as e:  # noqa: BLE001
+        print(f"[reach] skipped: {e}")
+
     if price != 0.0:
         # signed download links live on the product page, behind checkout
         if paid_files:
@@ -189,17 +201,6 @@ def publish_asset(pack: dict, slug: str, file_urls: list[dict],
         print(f"[dist] enqueue skipped: {e}")
         rz.alert("Distribution enqueue failed", f"`{e}`", level="warn",
                  dedupe="enqueue-fail")
-
-    # Whop-native reach: chat broadcast (+ DMs when explicitly enabled).
-    # Members and chat feeds are audience we already have; the forum posts
-    # alone were only reaching two empty forums.
-    try:
-        import whop_reach
-        whop_reach.announce(pack.get("title", slug),
-                            page_url or result.get("page_url", ""),
-                            pack.get("subtitle", ""), asset_slug=slug)
-    except Exception as e:  # noqa: BLE001
-        print(f"[reach] skipped: {e}")
 
     # FAQs: no product field exists, so attach the FAQ app as an experience
     # (sidebar item) and print the generated copy for the one manual paste.
